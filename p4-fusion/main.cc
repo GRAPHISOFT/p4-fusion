@@ -33,13 +33,16 @@ int Main(int argc, char** argv)
 {
 	Timer programTimer;
 
-	Arguments::GetSingleton()->RequiredParameter("--path", "P4 depot path to convert to a Git repo.  If used with '--branch', this is the base path for the branches.");
+	Arguments::GetSingleton()->OptionalParameter("--path", "", "P4 depot path to convert to a Git repo.  If used with '--branch', this is the base path for the branches.");
 	Arguments::GetSingleton()->RequiredParameter("--src", "Relative path where the git repository should be created. This path should be empty before running p4-fusion for the first time in a directory.");
 	Arguments::GetSingleton()->RequiredParameter("--port", "Specify which P4PORT to use.");
 	Arguments::GetSingleton()->RequiredParameter("--user", "Specify which P4USER to use. Please ensure that the user is logged in.");
 	Arguments::GetSingleton()->RequiredParameter("--client", "Name/path of the client workspace specification.");
 	Arguments::GetSingleton()->RequiredParameter("--lookAhead", "How many CLs in the future, at most, shall we keep downloaded by the time it is to commit them?");
 	Arguments::GetSingleton()->OptionalParameterList("--branch", "A branch to migrate under the depot path.  May be specified more than once.  If at least one is given and the noMerge option is false, then the Git repository will include merges between branches in the history.  You may use the formatting 'depot/path:git-alias', separating the Perforce branch sub-path from the git alias name by a ':'; if the depot path contains a ':', then you must provide the git branch alias.");
+	Arguments::GetSingleton()->OptionalParameter("--autoBranch", "false", "Runs the tool in auto-branching mode. Branches are detected from a given root branch specified in --rootBranch.");
+	Arguments::GetSingleton()->OptionalParameter("--rootBranch", "", "Specifies the root branch to start auto-branch detection from.");
+	Arguments::GetSingleton()->OptionalParameter("--rootBranchName", "", "Specifies the name of the root branch.");
 	Arguments::GetSingleton()->OptionalParameter("--noMerge", "false", "Disable performing a Git merge when a Perforce branch integrates (or copies, etc) into another branch.");
 	Arguments::GetSingleton()->OptionalParameter("--networkThreads", std::to_string(std::thread::hardware_concurrency()), "Specify the number of threads in the threadpool for running network calls. Defaults to the number of logical CPUs.");
 	Arguments::GetSingleton()->OptionalParameter("--printBatch", "1", "Specify the p4 print batch size.");
@@ -75,6 +78,22 @@ int Main(int argc, char** argv)
 	const int maxChanges = std::atoi(Arguments::GetSingleton()->GetMaxChanges().c_str());
 	const int flushRate = std::atoi(Arguments::GetSingleton()->GetFlushRate().c_str());
 	const std::vector<std::string> branchNames = Arguments::GetSingleton()->GetBranches();
+
+	const bool autoBranchMode = Arguments::GetSingleton()->GetAutoBranch() != "false";
+	const std::string rootBranch = Arguments::GetSingleton()->GetRootBranch();
+	const std::string rootBranchName = Arguments::GetSingleton()->GetRootBranchName();
+
+	if (depotPath.empty ()) {
+		if (!autoBranchMode || rootBranch.empty() || rootBranchName.empty()){
+			ERR("If --path is not specified, p4-fusion must be run in auto-branching mode!");
+			return 1;
+		}
+	} else {
+		if (autoBranchMode){
+			ERR("If the tool is run in auto-branching mode, then --path is not required!");
+			return 1;
+		}
+	}
 
 	PRINT("Running p4-fusion from: " << argv[0]);
 

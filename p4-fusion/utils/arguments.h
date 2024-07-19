@@ -57,4 +57,7 @@ public:
 	std::string GetNoColor() const { return GetParameter("--noColor"); };
 	std::string GetNoMerge() const { return GetParameter("--noMerge"); };
 	std::vector<std::string> GetBranches() const { return GetParameterList("--branch"); };
+	std::string GetAutoBranch() const { return GetParameter("--autoBranch"); };
+	std::string GetRootBranch() const { return GetParameter("--rootBranch"); };
+	std::string GetRootBranchName() const { return GetParameter("--rootBranchName"); };
 };
