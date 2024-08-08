@@ -74,3 +74,13 @@ std::vector<std::string> P4Path::GetParts() const
 
 	return result;
 }
+
+bool P4Path::operator==(const P4Path& other) const
+{
+	return m_path == other.m_path;
+}
+
+bool P4Path::operator!=(const P4Path& other) const
+{
+    return !(*this == other);
+}
