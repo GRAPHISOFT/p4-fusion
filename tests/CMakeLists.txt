@@ -2,10 +2,12 @@ add_executable(p4-fusion-test
     main.cc
 
     tests.p4_path.cc
+    tests.branch_registry.cc
 
     ../p4-fusion/utils/p4_path.cc
     ../p4-fusion/utils/std_helpers.cc
     ../p4-fusion/utils/time_helpers.cc
+    ../p4-fusion/branch_registry.cc
     ../p4-fusion/git_api.cc
     ../p4-fusion/log.cc
 )
