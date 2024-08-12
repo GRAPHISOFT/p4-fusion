@@ -14,6 +14,7 @@ target_include_directories(p4-fusion PUBLIC
     ../${HELIX_API}/include/
     ../vendor/libgit2/include/
     ../vendor/minitrace/
+    ../vendor/rapidjson/include/
     ${CMAKE_CURRENT_LIST_DIR}
 )
 

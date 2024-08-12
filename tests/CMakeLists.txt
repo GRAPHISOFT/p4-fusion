@@ -17,6 +17,7 @@ target_include_directories(p4-fusion-test PRIVATE
     ../${HELIX_API}/include/
     ../vendor/libgit2/include/
     ../vendor/minitrace/
+    ../vendor/rapidjson/include
 )
 
 target_link_libraries(p4-fusion-test PRIVATE

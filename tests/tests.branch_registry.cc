@@ -5,16 +5,17 @@
 #include "tests.common.h"
 #include "branch_registry.h"
 
+#include "rapidjson/rapidjson.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/prettywriter.h"
+
 int TestBranchRegistry ()
 {
     TEST_START();
 
+	// Create branch structure
+
 	BranchRegistry r1;
-
-	const std::string pUnknownBranchPath = "//Depot/Unkown/Branches/1";
-
-	TEST(r1.Contains(pUnknownBranchPath), false);
-	TEST(r1.GetBranchID(pUnknownBranchPath), BranchRegistry::InvalidBranchID);
 
 	const std::string pParentPath = "//Development/Main";
 	const std::string pChild1Path = "//Project/Branches/Feature-1";
@@ -34,6 +35,13 @@ int TestBranchRegistry ()
 	
 	auto v101ID =r1.Add({ "v1.0.1", pChild2Path });
 	r1.AddParentRef(v101ID, pParentPath);
+
+	// Test basic operations
+
+	const std::string pUnknownBranchPath = "//Depot/Unkown/Branches/1";
+
+	TEST(r1.Contains(pUnknownBranchPath), false);
+	TEST(r1.GetBranchID(pUnknownBranchPath), BranchRegistry::InvalidBranchID);
 
 	TEST(r1.Contains(pParentPath), true);
 	TEST(r1.Contains(pChild1Path), true);
@@ -55,6 +63,37 @@ int TestBranchRegistry ()
 	TEST (r1.GetBranchEntry(pParentPath).info.branchName, "Main");
 	r1.RenameBranch(pParentPath, "Master");
 	TEST (r1.GetBranchEntry(pParentPath).info.branchName, "Master");
+
+	// Test (de-)serialization
+
+	const char* pReference = R"([{"id":0,"name":"Master","path":"//Development/Main","parentCandidates":[]},{"id":1,"name":"Feature-1","path":"//Project/Branches/Feature-1","parentCandidates":[{"id":0,"count":10},{"id":2,"count":5}]},{"id":2,"name":"Feature-1-DEV","path":"//Project/Branches/Feature-1-DEV","parentCandidates":[{"id":1,"count":1}]},{"id":3,"name":"v1.0.1","path":"//Releases/v1.0.1","parentCandidates":[{"id":0,"count":1}]}])";
+	rapidjson::Document refDoc;
+	refDoc.Parse(pReference);
+
+	rapidjson::Document actualDoc = r1.SerializeToJSON();
+	TEST (actualDoc, refDoc);
+
+	BranchRegistry r2 = BranchRegistry::DeserializeFromJSON(refDoc);
+
+	TEST(r1, r2);
+	TEST(r1.SerializeToJSON(), r2.SerializeToJSON());
+	TEST(refDoc, r2.SerializeToJSON());
+
+	// Add new branch to object deserialized from JSON representation
+	const std::string newProjectPath = "//Project/Branches/NewProject";
+	r2.Add({ "NewProject", newProjectPath });
+	r2.AddParentRef(r2.GetBranchID(newProjectPath), r2.GetBranchID(pParentPath));
+
+	TEST(r2.Contains(newProjectPath), true);
+
+	BranchRegistry::ParentCandidates newProjectParentCandidates = { { r1.GetBranchID(pParentPath), 1 } };
+	TEST(r2.GetBranchEntry(newProjectPath).parentCandidates, newProjectParentCandidates);
+
+	const char* pModifiedReference = R"([{"id":0,"name":"Master","path":"//Development/Main","parentCandidates":[]},{"id":1,"name":"Feature-1","path":"//Project/Branches/Feature-1","parentCandidates":[{"id":0,"count":10},{"id":2,"count":5}]},{"id":2,"name":"Feature-1-DEV","path":"//Project/Branches/Feature-1-DEV","parentCandidates":[{"id":1,"count":1}]},{"id":3,"name":"v1.0.1","path":"//Releases/v1.0.1","parentCandidates":[{"id":0,"count":1}]},{"id":4,"name":"NewProject","path":"//Project/Branches/NewProject","parentCandidates":[{"id":0,"count":1}]}])";
+
+	rapidjson::Document modifiedRefDoc;
+	modifiedRefDoc.Parse(pModifiedReference);
+	TEST (r2.SerializeToJSON(), modifiedRefDoc);
 
 	TEST_END();
 

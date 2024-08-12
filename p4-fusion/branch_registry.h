@@ -5,9 +5,21 @@
 
 #include "utils/p4_path.h"
 
+#include "rapidjson/document.h"
+
 struct BranchInfo {
     std::string branchName;
     P4Path branchPath;
+
+    bool operator==(const BranchInfo& other) const
+    {
+        return branchName == other.branchName && branchPath == other.branchPath;
+    }
+
+    bool operator!=(const BranchInfo& other) const
+    {
+        return !(*this == other);
+    }
 };
 
 // This class is a registry of branches, storing branches' name, path, and parent branch (if there is one).
@@ -21,7 +33,17 @@ public:
         BranchID id;
         BranchInfo info;
         ParentCandidates parentCandidates;
-    };
+
+        bool operator==(const Entry& other) const {
+            return id == other.id &&
+                   info == other.info &&
+                   parentCandidates == other.parentCandidates;
+        }
+
+        bool operator!=(const Entry& other) const {
+            return !(*this == other);
+        }
+    };;
 
     static const BranchID InvalidBranchID = std::numeric_limits<BranchID>::max();
 
@@ -35,6 +57,12 @@ public:
     const Entry& GetBranchEntry(const P4Path& path) const;
 
     void RenameBranch(const std::string& path, const std::string& newName);
+
+    rapidjson::Document SerializeToJSON() const;
+    static BranchRegistry DeserializeFromJSON(const rapidjson::Document& doc);
+
+    bool operator==(const BranchRegistry& other) const;
+    bool operator!=(const BranchRegistry& other) const;
 
 private:
     BranchID m_nextID = 0;
