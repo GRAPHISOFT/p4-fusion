@@ -3,28 +3,27 @@
 #include "std_helpers.h"
 
 namespace {
-    bool IsValidP4Path(const std::string& path)
+bool IsValidP4Path(const std::string& path)
+{
+    // Best-effort validation...
+
+    if(path.empty())
     {
-        // Best-effort validation...
-
-        if(path.empty())
-        {
-            return false;
-        }
-
-        if(!STDHelpers::StartsWith(path, "//"))
-        {
-            return false;
-        }
-
-        if(STDHelpers::Contains(path, "\\"))
-        {
-            return false;
-        }
-
-        return true;
+        return false;
     }
-    
+
+    if(!STDHelpers::StartsWith(path, "//"))
+    {
+        return false;
+    }
+
+    if(STDHelpers::Contains(path, "\\"))
+    {
+        return false;
+    }
+
+    return true;
+}
 }
 
 P4Path::InvalidPathException::InvalidPathException(const std::string& path)
@@ -39,30 +38,61 @@ const char* P4Path::InvalidPathException::what() const noexcept
     return m_what.c_str();
 }
 
-P4Path::P4Path(const std::string& path)
+P4Path::Part::Part(const std::string& part): Part(std::string(part))
+{
+}
+
+P4Path::Part::Part(std::string&& part)
+{
+    m_rawPart = std::move(part);
+    m_lowerPart = STDHelpers::ToLower(m_rawPart);
+}
+
+P4Path::Part::Part(const char* pPartStr)
+{
+    m_rawPart = pPartStr;
+    m_lowerPart = STDHelpers::ToLower(pPartStr);
+}
+
+bool P4Path::Part::operator==(const Part& other) const
+{
+    return m_lowerPart == other.m_lowerPart;
+}
+
+bool P4Path::Part::operator!=(const Part& other) const
+{
+    return !(*this == other);
+}
+
+P4Path::P4Path(const std::string& path): P4Path(std::string(path))
+{
+}
+
+P4Path::P4Path(std::string&& path)
 {
     if (!IsValidP4Path (path))
     {
         throw InvalidPathException(path);
     }
 
-    m_path = path;
+    m_rawPath = std::move(path);
+    m_lowerPath = STDHelpers::ToLower(m_rawPath);
 }
 
 const std::string& P4Path::GetPath() const
 {
-    return m_path;
+    return m_rawPath;
 }
 
-std::string P4Path::GetDepotName () const
+P4Path::Part P4Path::GetDepotName () const
 {
     return GetParts ()[0];
 }
 
-std::vector<std::string> P4Path::GetParts() const
+std::vector<P4Path::Part> P4Path::GetParts() const
 {
-    std::vector<std::string> result;
-    std::string remainder = m_path;
+    std::vector<P4Path::Part> result;
+    std::string remainder = m_rawPath;
     STDHelpers::Erase(remainder, "//");
 
     do {
@@ -77,7 +107,7 @@ std::vector<std::string> P4Path::GetParts() const
 
 bool P4Path::operator==(const P4Path& other) const
 {
-	return m_path == other.m_path;
+	return m_lowerPath == other.m_lowerPath;
 }
 
 bool P4Path::operator!=(const P4Path& other) const

@@ -11,13 +11,19 @@ int TestP4Path ()
 	P4Path p(pPathStr);
 	TEST(p.GetPath(), pPathStr);
 	TEST(p.GetDepotName(), "Depot");
-	TEST(p.GetParts(), std::vector<std::string> ({ "Depot", "Path", "To", "file" }));
+	TEST(p.GetParts(), std::vector<P4Path::Part> ({ "Depot", "Path", "To", "file" }));
+
+	const char* pPathMixedCase = "//Depot/PATH/to/FiLe";
+	P4Path pMixedCase(pPathMixedCase);
+	TEST(pMixedCase, p);
+	TEST(p.GetParts(), pMixedCase.GetParts());
+	TEST_NEQ(pMixedCase.GetPath(), p.GetPath());
 
 	const char* pPathWithSlashStr = "//Depot/Branch/2/";
-	P4Path p2(pPathWithSlashStr);
-	TEST(p2.GetPath(), pPathWithSlashStr);
-	TEST(p2.GetDepotName(), "Depot");
-	TEST(p2.GetParts(), std::vector<std::string> ({ "Depot", "Branch", "2" }));
+	P4Path pWSlash(pPathWithSlashStr);
+	TEST(pWSlash.GetPath(), pPathWithSlashStr);
+	TEST(pWSlash.GetDepotName(), "Depot");
+	TEST(pWSlash.GetParts(), std::vector<P4Path::Part> ({ "Depot", "Branch", "2" }));
 
 	{
 		bool threw = false;
@@ -58,6 +64,13 @@ int TestP4Path ()
 
 		TEST(threw, true);
 	}
+
+	P4Path::Part part1 = "Depot";
+	P4Path::Part part1B = "depot";
+	P4Path::Part part2 = "Branch";
+	P4Path::Part part2B = "BRaNcH";
+	TEST(part1, part1B);
+	TEST(part2, part2B);
 
 	TEST_END();
 	return TEST_EXIT_CODE();

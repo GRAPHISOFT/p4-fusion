@@ -16,19 +16,37 @@ public:
         mutable std::string m_what;
     };
 
+    class Part {
+    public:
+        Part(const std::string& part);
+        Part(std::string&& part);
+        Part(const char* pPartStr);
+
+        const std::string& GetPart() const;
+
+        bool operator==(const Part& other) const;
+        bool operator!=(const Part& other) const;
+
+    private:
+        std::string m_rawPart;
+        std::string m_lowerPart;
+    };
+
     P4Path(const std::string& path);
+    P4Path(std::string&& path);
 
     const std::string& GetPath() const;
-    std::string GetDepotName() const;
+    Part GetDepotName() const;
 
-    std::vector<std::string> GetParts () const;
+    std::vector<Part> GetParts () const;
 
     // Comparison operators
     bool operator==(const P4Path& other) const;
     bool operator!=(const P4Path& other) const;
 
 private:
-    std::string m_path;
+    std::string m_rawPath;
+    std::string m_lowerPath;
 };
 
 namespace std {

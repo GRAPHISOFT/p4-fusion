@@ -64,6 +64,13 @@ void STDHelpers::StripSurrounding(std::string& source, const char c)
 	}
 }
 
+std::string STDHelpers::ToLower(const std::string& source)
+{
+	std::string result = source;
+	std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+	return result;
+}
+
 std::array<std::string, 2> STDHelpers::SplitAt(const std::string& source, const char c, const size_t startAt)
 {
 	size_t pos = source.find(c, startAt);
