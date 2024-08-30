@@ -16,7 +16,7 @@ BranchRegistry::BranchID BranchRegistry::Add(const BranchInfo& branch)
 
 void BranchRegistry::AddParentRef(BranchID childID, P4Path parentPath)
 {
-    if(!Contains(parentPath.GetPath()))
+    if(!Contains(parentPath.AsString()))
     {
         throw std::runtime_error("Branch cannot be added as parent, because it's not in the registry!");
     }
@@ -70,9 +70,9 @@ void BranchRegistry::RenameBranch(const std::string& path, const std::string& ne
     m_branchesByID.at(id).info.branchName = newName;
 }
 
-rapidjson::Document BranchRegistry::SerializeToJSON() const
+rapidjson::Value BranchRegistry::SerializeToJSON(rapidjson::Document& doc) const
 {
-    rapidjson::Document jsonDoc(rapidjson::kArrayType);
+    rapidjson::Value jsonValue(rapidjson::kArrayType);
 
     // Create a vector of branch entries sorted by id
     std::vector<const Entry*> sortedEntries;
@@ -88,9 +88,9 @@ rapidjson::Document BranchRegistry::SerializeToJSON() const
     for (const auto& branchEntry : sortedEntries)
     {
         rapidjson::Value branchObj(rapidjson::kObjectType);
-        branchObj.AddMember("id", branchEntry->id, jsonDoc.GetAllocator());
-        branchObj.AddMember("name", rapidjson::StringRef(branchEntry->info.branchName.c_str()), jsonDoc.GetAllocator());
-        branchObj.AddMember("path", rapidjson::StringRef(branchEntry->info.branchPath.GetPath().c_str()), jsonDoc.GetAllocator());
+        branchObj.AddMember("id", branchEntry->id, doc.GetAllocator());
+        branchObj.AddMember("name", rapidjson::StringRef(branchEntry->info.branchName.c_str()), doc.GetAllocator());
+        branchObj.AddMember("path", rapidjson::StringRef(branchEntry->info.branchPath.AsString().c_str()), doc.GetAllocator());
 
         rapidjson::Value parentCandidatesArray(rapidjson::kArrayType);
         std::vector<std::pair<BranchID, uint32_t>> sortedParentCandidates(branchEntry->parentCandidates.begin(), branchEntry->parentCandidates.end());
@@ -102,25 +102,35 @@ rapidjson::Document BranchRegistry::SerializeToJSON() const
         for (const auto& parent : sortedParentCandidates)
         {
             rapidjson::Value parentObj(rapidjson::kObjectType);
-            parentObj.AddMember("id", parent.first, jsonDoc.GetAllocator());
-            parentObj.AddMember("count", parent.second, jsonDoc.GetAllocator());
-            parentCandidatesArray.PushBack(parentObj, jsonDoc.GetAllocator());
+            parentObj.AddMember("id", parent.first, doc.GetAllocator());
+            parentObj.AddMember("count", parent.second, doc.GetAllocator());
+            parentCandidatesArray.PushBack(parentObj, doc.GetAllocator());
         }
 
-        branchObj.AddMember("parentCandidates", parentCandidatesArray, jsonDoc.GetAllocator());
+        branchObj.AddMember("parentCandidates", parentCandidatesArray, doc.GetAllocator());
 
-        jsonDoc.PushBack(branchObj, jsonDoc.GetAllocator());
+        jsonValue.PushBack(branchObj, doc.GetAllocator());
     }
 
-    return jsonDoc;
+    return jsonValue;
 }
 
-BranchRegistry BranchRegistry::DeserializeFromJSON(const rapidjson::Document& doc)
+BranchRegistry BranchRegistry::DeserializeFromJSON(const rapidjson::Value& value)
 {
+    if(!value.IsArray())
+    {
+        throw std::runtime_error("Branch registry JSON is not an array!");
+    }
+
     BranchRegistry result;
 
-    for (const auto& branch : doc.GetArray())
+    for (const auto& branch : value.GetArray())
     {
+        if(!branch.IsObject())
+        {
+            throw std::runtime_error("Branch registry JSON array contains non-object element!");
+        }
+        
         BranchInfo branchInfo = {branch["name"].GetString(), P4Path(branch["path"].GetString())};
 
         ParentCandidates parentCandidates;

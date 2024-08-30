@@ -43,6 +43,7 @@ struct FileDataStore
 	//   - empty if not an integration style change
 	std::string fromDepotFile;
 	std::string fromRevision;
+	std::string how;	// Concrete "action" of the integration. This is referred to as "how" in the P4 API, and "Action" in P4V
 
 	// print values
 	//   the "is*" values here are intended to put the
@@ -78,6 +79,7 @@ public:
 	void SetFromDepotFile(const std::string& fromDepotFile, const std::string& fromRevision);
 	void SetRelativePath(std::string& relativePath);
 	void SetFakeIntegrationDeleteAction() { m_data->SetAction(FAKE_INTEGRATION_DELETE_ACTION_NAME); };
+	void SetHow(const std::string& how) { m_data->how = how; };
 
 	// moves the argument's data into this file data structure.
 	void MoveContentsOnceFrom(const std::vector<char>& contents);
@@ -94,6 +96,7 @@ public:
 	bool IsIntegrated() const { return m_data->isIntegrated; };
 	std::string& GetFromDepotFile() const { return m_data->fromDepotFile; };
 	std::string& GetFromRevision() const { return m_data->fromRevision; };
+	const std::string& GetHow() const { return m_data->how; };
 
 	bool IsBinary() const;
 	bool IsExecutable() const;

@@ -31,6 +31,8 @@ void FileLogResult::OutputStat(StrDict* varList)
 	//   That needs testing, though.
 	int i = 0;
 	StrPtr* how = nullptr;
+	StrPtr* file = nullptr;	// Either a Source or a Target integration file.
+	StrPtr* rev = nullptr;	// Revision of the Source or Target integration file.
 	while (true)
 	{
 		std::string indexString = std::to_string(i++);
@@ -41,7 +43,21 @@ void FileLogResult::OutputStat(StrDict* varList)
 			break;
 		}
 
-		std::string howStr = how->Text();
+		const std::string howStr = how->Text();
+
+		file = varList->GetVar(("file0," + indexString).c_str());
+		std::string fileStr;
+		if(file)
+		{
+			fileStr = file->Text();
+		}
+
+		rev = varList->GetVar(("erev0," + indexString).c_str());
+		std::string revStr;
+		if(rev)
+		{
+			revStr = rev->Text();
+		}
 
 		// How text values listed at:
 		// https://www.perforce.com/manuals/cmdref/Content/CmdRef/p4_integrated.html
@@ -69,11 +85,10 @@ void FileLogResult::OutputStat(StrDict* varList)
 		if (STDHelpers::EndsWith(howStr, " from"))
 		{
 			// copy or integrate or branch or move or archive from a location.
-			std::string fromDepotFile = varList->GetVar(("file0," + indexString).c_str())->Text();
-			std::string fromRev = varList->GetVar(("erev0," + indexString).c_str())->Text();
-			fileData.SetFromDepotFile(fromDepotFile, fromRev);
+			fileData.SetFromDepotFile(fileStr, revStr);
+			fileData.SetHow(howStr);
 
-			// Don't look for any other integration history; there can (should?) be at most one.
+			// There should be a single "Source" entry in a filelog result for a file. Ending in "from" is what signifies that this is a "Source"-type entry.
 			break;
 		}
 	}

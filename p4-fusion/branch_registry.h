@@ -58,8 +58,8 @@ public:
 
     void RenameBranch(const std::string& path, const std::string& newName);
 
-    rapidjson::Document SerializeToJSON() const;
-    static BranchRegistry DeserializeFromJSON(const rapidjson::Document& doc);
+    rapidjson::Value SerializeToJSON(rapidjson::Document& doc) const;
+    [[nodiscard]] static BranchRegistry DeserializeFromJSON(const rapidjson::Value& value);
 
     bool operator==(const BranchRegistry& other) const;
     bool operator!=(const BranchRegistry& other) const;

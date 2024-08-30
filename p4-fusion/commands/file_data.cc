@@ -6,10 +6,27 @@
  */
 #include "file_data.h"
 
+namespace {
+
+std::string ParseRevisionString(const std::string& revString)
+{
+	if (STDHelpers::StartsWith(revString, "#"))
+	{
+		return revString.substr(1);
+	} else
+	{
+		return revString;
+	}
+}
+
+}
+
 FileDataStore::FileDataStore()
     : actionCategory(FileAction::FileAdd)
     , isContentsSet(false)
     , isContentsPendingDownload(false)
+	, isDeleted(false)
+	, isIntegrated(false)
 {
 }
 

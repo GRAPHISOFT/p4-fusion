@@ -17,6 +17,7 @@
 #include "utils/timer.h"
 #include "utils/arguments.h"
 
+#include "auto_branching.h"
 #include "thread_pool.h"
 #include "p4_api.h"
 #include "git_api.h"
@@ -31,6 +32,11 @@ void SignalHandler(sig_atomic_t s);
 
 int Main(int argc, char** argv)
 {
+	// Call LoadLastCLAndBranchRegistryFromFile, get the result with tuple unpacking
+	//auto lastCLAndBranchRegistry = LoadLastProcessedCLAndBranchRegistryFromFile("/Volumes/Dev/Dev");
+	//const uint32_t lastCL = std::get<0>(lastCLAndBranchRegistry);
+	//const BranchRegistry branchRegistry = std::get<1>(lastCLAndBranchRegistry);
+
 	Timer programTimer;
 
 	Arguments::GetSingleton()->OptionalParameter("--path", "", "P4 depot path to convert to a Git repo.  If used with '--branch', this is the base path for the branches.");
@@ -71,7 +77,7 @@ int Main(int argc, char** argv)
 
 	const bool noMerge = Arguments::GetSingleton()->GetNoMerge() != "false";
 
-	const std::string depotPath = Arguments::GetSingleton()->GetDepotPath();
+	std::string depotPath = Arguments::GetSingleton()->GetDepotPath();
 	const std::string srcPath = Arguments::GetSingleton()->GetSourcePath();
 	const bool fsyncEnable = Arguments::GetSingleton()->GetFsyncEnable() != "false";
 	const bool includeBinaries = Arguments::GetSingleton()->GetIncludeBinaries() != "false";
@@ -82,6 +88,7 @@ int Main(int argc, char** argv)
 	const bool autoBranchMode = Arguments::GetSingleton()->GetAutoBranch() != "false";
 	const std::string rootBranch = Arguments::GetSingleton()->GetRootBranch();
 	const std::string rootBranchName = Arguments::GetSingleton()->GetRootBranchName();
+	const bool branchRegistryFileExists = BranchRegistryFileExistsForRepo(srcPath);
 
 	if (depotPath.empty ()) {
 		if (!autoBranchMode || rootBranch.empty() || rootBranchName.empty()){
@@ -90,7 +97,7 @@ int Main(int argc, char** argv)
 		}
 	} else {
 		if (autoBranchMode){
-			ERR("If the tool is run in auto-branching mode, then --path is not required!");
+			ERR("If p4-fusion is run in auto-branching mode, then --path is not required!");
 			return 1;
 		}
 	}
@@ -131,7 +138,7 @@ int Main(int argc, char** argv)
 
 	P4API p4;
 
-	if (!p4.IsDepotPathValid(depotPath))
+	if (!autoBranchMode && !p4.IsDepotPathValid(depotPath))
 	{
 		ERR("Depot path should begin with \"//\" and end with \"/...\". Please pass in the proper depot path and try again.");
 		return 1;
@@ -176,8 +183,6 @@ int Main(int argc, char** argv)
 		P4API::CommandRefreshThreshold = std::atoi(refreshStr.c_str());
 	}
 
-	BranchSet branchSet(P4API::ClientSpec.mapping, depotPath, branchNames, includeBinaries);
-
 	bool profiling = false;
 #if MTR_ENABLED
 	profiling = true;
@@ -198,7 +203,6 @@ int Main(int argc, char** argv)
 	PRINT("Profiling: " << profiling);
 	PRINT("Profiling Flush Rate: " << flushRate);
 	PRINT("No Colored Output: " << noColor);
-	PRINT("Inspecting " << branchSet.Count() << " branches");
 
 	GitAPI git(fsyncEnable);
 
@@ -214,9 +218,19 @@ int Main(int argc, char** argv)
 	MTR_META_THREAD_NAME("Main Thread");
 	MTR_META_THREAD_SORT_INDEX(0);
 
+	if(autoBranchMode)
+	{
+		depotPath = "//...";	// Relevant branches could be in any Depot
+	}
+
 	std::string resumeFromCL;
 	if (git.IsHEADExists())
 	{
+		if(autoBranchMode && !branchRegistryFileExists){
+			ERR("Resuming from a previous run in auto-branching mode, but no branch registry file exists. Exiting.");
+			return 1;
+		}
+
 		if (!git.IsRepositoryClonedFrom(depotPath))
 		{
 			ERR("Git repository at " << srcPath << " was not initially cloned with depotPath = " << depotPath << ". Exiting.");
@@ -238,12 +252,39 @@ int Main(int argc, char** argv)
 		return 0;
 	}
 
-	// The changes are received in chronological order
-	SUCCESS("Found " << changes.size() << " uncloned CLs starting from CL " << changes.front().number << " to CL " << changes.back().number);
-
 	PRINT("Creating " << networkThreads << " network threads");
 	ThreadPool::GetSingleton()->Initialize(networkThreads);
 	SUCCESS("Created " << ThreadPool::GetSingleton()->GetThreadCount() << " threads in thread pool");
+
+	// When run in auto-branching mode, we need two passes:
+	// 1. Detect all branches, and determine their parents
+	// 2. Actually perform the "conversion", with the branches detected in step 1 as input
+
+	if (autoBranchMode) {
+		PRINT("Running in auto-branching mode");
+
+		if(BranchRegistryFileExistsForRepo(srcPath)){
+			throw std::logic_error("TODO: not implemented yet!");
+		}
+
+		BranchRegistry branchRegistry;
+		BranchInfo rootInfo = { rootBranchName, rootBranch };
+		auto rootID = branchRegistry.Add(rootInfo);
+
+		for(const auto& change : changes) {
+			ProcessCLForBranchRegistry(p4, std::stoi(change.number), branchRegistry, rootID);
+
+			SUCCESS("CL " << change.number << " was processed for the BranchRegistry.");
+		}
+
+		SaveLastProcessedCLAndBranchRegistryToFile(srcPath, std::stoi(changes.back().number), branchRegistry);
+	}
+
+	// TODO what the hell do we do with this when in auto-branch mode?
+	BranchSet branchSet(P4API::ClientSpec.mapping, depotPath, branchNames, includeBinaries);
+
+	// The changes are received in chronological order
+	SUCCESS("Found " << changes.size() << " uncloned CLs starting from CL " << changes.front().number << " to CL " << changes.back().number);
 
 	int startupDownloadsCount = 0;
 

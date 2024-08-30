@@ -66,18 +66,22 @@ int TestBranchRegistry ()
 
 	// Test (de-)serialization
 
-	const char* pReference = R"([{"id":0,"name":"Master","path":"//Development/Main","parentCandidates":[]},{"id":1,"name":"Feature-1","path":"//Project/Branches/Feature-1","parentCandidates":[{"id":0,"count":10},{"id":2,"count":5}]},{"id":2,"name":"Feature-1-DEV","path":"//Project/Branches/Feature-1-DEV","parentCandidates":[{"id":1,"count":1}]},{"id":3,"name":"v1.0.1","path":"//Releases/v1.0.1","parentCandidates":[{"id":0,"count":1}]}])";
+	const char* pReference = R"({"branchRegistry":[{"id":0,"name":"Master","path":"//Development/Main","parentCandidates":[]},{"id":1,"name":"Feature-1","path":"//Project/Branches/Feature-1","parentCandidates":[{"id":0,"count":10},{"id":2,"count":5}]},{"id":2,"name":"Feature-1-DEV","path":"//Project/Branches/Feature-1-DEV","parentCandidates":[{"id":1,"count":1}]},{"id":3,"name":"v1.0.1","path":"//Releases/v1.0.1","parentCandidates":[{"id":0,"count":1}]}]})";
 	rapidjson::Document refDoc;
 	refDoc.Parse(pReference);
 
-	rapidjson::Document actualDoc = r1.SerializeToJSON();
+	rapidjson::Document actualDoc;
+	rapidjson::Value actualValue = r1.SerializeToJSON(actualDoc);
+	actualDoc.SetObject().AddMember("branchRegistry", actualValue, actualDoc.GetAllocator());
+
 	TEST (actualDoc, refDoc);
 
-	BranchRegistry r2 = BranchRegistry::DeserializeFromJSON(refDoc);
+	BranchRegistry r2 = BranchRegistry::DeserializeFromJSON(refDoc["branchRegistry"]);
 
+	rapidjson::Document dummyDoc;
 	TEST(r1, r2);
-	TEST(r1.SerializeToJSON(), r2.SerializeToJSON());
-	TEST(refDoc, r2.SerializeToJSON());
+	TEST(r1.SerializeToJSON(dummyDoc), r2.SerializeToJSON(dummyDoc));
+	TEST(refDoc["branchRegistry"], r2.SerializeToJSON(dummyDoc));
 
 	// Add new branch to object deserialized from JSON representation
 	const std::string newProjectPath = "//Project/Branches/NewProject";
@@ -93,7 +97,7 @@ int TestBranchRegistry ()
 
 	rapidjson::Document modifiedRefDoc;
 	modifiedRefDoc.Parse(pModifiedReference);
-	TEST (r2.SerializeToJSON(), modifiedRefDoc);
+	TEST (r2.SerializeToJSON(dummyDoc), modifiedRefDoc);
 
 	TEST_END();
 
