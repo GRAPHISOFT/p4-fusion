@@ -8,7 +8,7 @@
 #include "rapidjson/document.h"
 
 struct BranchInfo {
-    std::string branchName;
+    P4Path::Part branchName;
     P4Path branchPath;
 
     bool operator==(const BranchInfo& other) const

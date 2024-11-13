@@ -19,7 +19,10 @@ std::string RepoPathToRegistryFilePath(const std::string& repoPath)
     return parentPath + "/" + registryFileName;
 }
 
-// From a "parent" and "child" file path, this function determines the paths and names of the branches that the files belong to
+static const P4Path::Part BranchNameMain = "Main";
+static const P4Path::Part BranchNameRelease = "Release";
+
+// From a "parent" and "child" P4 path, this function determines the paths and names of the branches that the files belong to
 std::pair<BranchInfo, BranchInfo> DetermineBranchInfo(const P4Path& parentPath, const P4Path& childPath)
 {
     // The algorithm is dead simple: iterate on the path components of the parent and child paths starting from the end,
@@ -27,13 +30,11 @@ std::pair<BranchInfo, BranchInfo> DetermineBranchInfo(const P4Path& parentPath, 
     // E.g., if we have //Products/A/Main/test.cpp and //Products/A/Project1/test.cpp, then the parent branch is
     //  @ //Products/A/Main with branch name Main, and the child branch is @ //Products/A/Project1 with branch name Project1
 
-    // There are some edge cases to consider as well, e.g.: //Products/Main/test.cpp and //Releases/v1.1/Main/test.cpp
-    //  In this case, the above approach would yield parent branch //Products and //Releases/v1.1
-    // Overall, it's practically impossible to account for all edge cases, since Perforce provides an amazing (or
-    //  horrifying, if you will) degree of freedom
+    // There are some edge cases to consider as well (see comments below). Overall, it's practically impossible to
+    //  account for all edge cases, since Perforce provides an amazing (or horrifying, if you will) degree of freedom.
 
-    const std::vector<P4Path::Part>& parentPathParts = parentPath.GetParts();
-    const std::vector<P4Path::Part>& childPathParts = childPath.GetParts();
+    const P4Path::Parts& parentPathParts = parentPath.GetParts();
+    const P4Path::Parts& childPathParts = childPath.GetParts();
 
     const size_t nParentParts = parentPathParts.size();
     const size_t nChildParts = childPathParts.size();
@@ -45,21 +46,51 @@ std::pair<BranchInfo, BranchInfo> DetermineBranchInfo(const P4Path& parentPath, 
     size_t nChildPartsRemaining = nChildParts;
 
     while(true) {
-        if(*parentPartIter != *childPartIter) {
+        if(*parentPartIter == *childPartIter &&
+            (*parentPartIter == BranchNameMain || *parentPartIter == BranchNameRelease)) {
+            // Edge case: even though the main "trigger" for the branch finder algorithm is a difference in the path
+            //  components, there are cases when the branch names are the same.
+            //  e.g.: //Products/A/Main and //Releases/v13/Main
+            if(nChildPartsRemaining >= 1 && nParentPartsRemaining >= 1) {
+                const P4Path::Part& prevParentPart = *(parentPartIter - 1);
+                const P4Path::Part& prevChildPart = *(childPartIter - 1);
+
+                // In this case, we stop, but only if the next path component differs
+                // Consider: //Project/A/ext/curl/main and //Project/B/ext/curl/main
+                // We don't want to get //Project/A/ext/curl //Project/B/ext/curl here...
+                if(prevParentPart != prevChildPart) {
+                    const P4Path parentBranchPath(parentPathParts.begin(), parentPathParts.begin() + nParentPartsRemaining);
+                    const P4Path childBranchPath(childPathParts.begin(), childPathParts.begin() + nChildPartsRemaining);
+
+                    const BranchInfo parentBranchInfo = { parentPathParts[nParentPartsRemaining - 1], parentBranchPath };
+                    const BranchInfo childBranchInfo = { childPathParts[nChildPartsRemaining - 1], childBranchPath };
+
+                    return { parentBranchInfo, childBranchInfo };
+                }
+            }
+        } else if(*parentPartIter != *childPartIter) {
             // We might have found the two branches' locations and names
 
             // Check for edge case: a branch should never be located at a Depot root
-            // If that would be the case, go with the results candidates of the previous iteration
-            if(nParentPartsRemaining <= 2 || nChildPartsRemaining <= 2) {
-                // TODO
+            // If that would be the case, go with the result candidates of the previous iteration
+            //  e.g.: //Products/Main/test.cpp and //Releases/v1.1/Main/test.cpp
+            //  In this case, the above approach would yield parent branch //Products and //Releases/v1.1
+            if (nParentPartsRemaining <= 1 || nChildPartsRemaining <= 1) {
+                P4Path previousParentPath = P4Path(parentPathParts.begin(), parentPathParts.begin() + nParentPartsRemaining + 1);
+                P4Path previousChildPath = P4Path(childPathParts.begin(), childPathParts.begin() + nChildPartsRemaining + 1);
+
+                const BranchInfo parentBranchInfo = { parentPathParts[nParentPartsRemaining], previousParentPath };
+                const BranchInfo childBranchInfo = { childPathParts[nChildPartsRemaining], previousChildPath };
+
+                return { parentBranchInfo, childBranchInfo };
             } else {
-                /*const P4Path parentBranchPath(parentPath.GetPath().substr(0, parentPath.GetPath().size() - parentPartIter->GetPart().size()));
-                const P4Path childBranchPath(childPath.GetPath().substr(0, childPath.GetPath().size() - childPartIter->GetPart().size()));
+                const P4Path parentBranchPath(parentPathParts.begin(), parentPathParts.begin() + nParentPartsRemaining);
+                const P4Path childBranchPath(childPathParts.begin(), childPathParts.begin() + nChildPartsRemaining);
 
-                const BranchInfo parentBranchInfo = { parentPartIter->GetPart(), parentBranchPath };
-                const BranchInfo childBranchInfo = { childPartIter->GetPart(), childBranchPath };
+                const BranchInfo parentBranchInfo = { parentPathParts[nParentPartsRemaining - 1], parentBranchPath };
+                const BranchInfo childBranchInfo = { childPathParts[nChildPartsRemaining - 1], childBranchPath };
 
-                return { parentBranchInfo, childBranchInfo };*/
+                return { parentBranchInfo, childBranchInfo };
             }
         }
 

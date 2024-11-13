@@ -7,8 +7,24 @@ int TestP4Path ()
 {
     TEST_START();
 
+	P4Path emptyPath;
+	TEST(emptyPath.IsEmpty(), true);
+
+
 	const char* pPathStr = "//Depot/Path/To/file";
 	P4Path p(pPathStr);
+
+	TEST(!p.IsEmpty(), true);
+
+	{
+		P4Path copiedPath = emptyPath;
+		TEST(copiedPath.IsEmpty(), true);
+		TEST(emptyPath.IsEmpty(), true);
+
+		copiedPath = p;
+		TEST(copiedPath, p);
+	}
+
 	TEST(p.AsString(), pPathStr);
 	TEST(p.GetDepotName(), "Depot");
 	TEST(p.GetParts(), std::vector<P4Path::Part> ({ "Depot", "Path", "To", "file" }));

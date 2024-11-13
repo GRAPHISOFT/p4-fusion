@@ -34,10 +34,16 @@ public:
 
     using Parts = std::vector<Part>;
 
+    P4Path();
     P4Path(const std::string& path);
     P4Path(std::string&& path);
     P4Path(Parts::const_iterator begin, Parts::const_iterator end);
     P4Path(const Parts& parts);
+
+    P4Path(const P4Path& other) = default;
+    P4Path& operator=(const P4Path& other) = default;
+
+    bool IsEmpty() const;
 
     // Might throw std::out_of_range or std::invalid_argument
     Parts Splice(size_t index_begin, size_t index_end) const;

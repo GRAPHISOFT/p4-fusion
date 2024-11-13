@@ -89,7 +89,7 @@ rapidjson::Value BranchRegistry::SerializeToJSON(rapidjson::Document& doc) const
     {
         rapidjson::Value branchObj(rapidjson::kObjectType);
         branchObj.AddMember("id", branchEntry->id, doc.GetAllocator());
-        branchObj.AddMember("name", rapidjson::StringRef(branchEntry->info.branchName.c_str()), doc.GetAllocator());
+        branchObj.AddMember("name", rapidjson::StringRef(branchEntry->info.branchName.AsString().c_str()), doc.GetAllocator());
         branchObj.AddMember("path", rapidjson::StringRef(branchEntry->info.branchPath.AsString().c_str()), doc.GetAllocator());
 
         rapidjson::Value parentCandidatesArray(rapidjson::kArrayType);

@@ -82,6 +82,10 @@ bool P4Path::Part::operator!=(const Part& other) const
     return !(*this == other);
 }
 
+P4Path::P4Path()
+{
+}
+
 P4Path::P4Path(const std::string& path): P4Path(std::string(path))
 {
 }
@@ -112,6 +116,11 @@ P4Path::P4Path(Parts::const_iterator begin, Parts::const_iterator end)
 P4Path::P4Path(const Parts& parts):
     P4Path(parts.begin(), parts.end())
 {
+}
+
+bool P4Path::IsEmpty() const
+{
+    return m_normalizedPath.empty();
 }
 
 P4Path::Parts P4Path::Splice(size_t index_begin, size_t index_end) const
