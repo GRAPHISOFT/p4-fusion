@@ -5,6 +5,8 @@
 
 class P4Path {
 public:
+    friend class std::hash<P4Path>;
+    
     class InvalidPathException : public std::exception {
     public:
         InvalidPathException(const std::string& path);
@@ -66,7 +68,7 @@ namespace std {
     template <>
     struct hash<P4Path> {
         size_t operator()(const P4Path& path) const {
-            return std::hash<std::string>()(path.AsString());
+            return std::hash<std::string>()(path.m_normalizedPath);
         }
     };
 }

@@ -45,6 +45,10 @@ int TestP4Path ()
 	P4Path pathWEndingSlash("//Depot/Branch/2/");
 	TEST(pathWOEndingSlash, pathWEndingSlash);
 
+	TEST(std::hash<P4Path>()(pathWEndingSlash), std::hash<P4Path>()(pathWOEndingSlash));
+	TEST(std::hash<P4Path>()(p), std::hash<P4Path>()(pMixedCase));
+	TEST_NEQ(std::hash<P4Path>()(p), std::hash<P4Path>()(pWSlash));
+
 	{
 		bool threw = false;
 		try
