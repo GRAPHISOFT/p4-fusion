@@ -30,6 +30,12 @@
 
 void SignalHandler(sig_atomic_t s);
 
+// Hacky globals so the creation of a branch registry can be interrupted and then resumed in a consequent run...
+BranchRegistry* gPBranchRegistry;
+const std::string* gPBranchRegistryPath;
+const std::string* gPlastProcessedCL;
+
+
 int Main(int argc, char** argv)
 {
 	// Call LoadLastCLAndBranchRegistryFromFile, get the result with tuple unpacking
@@ -263,21 +269,59 @@ int Main(int argc, char** argv)
 	if (autoBranchMode) {
 		PRINT("Running in auto-branching mode");
 
-		if(BranchRegistryFileExistsForRepo(srcPath)){
-			throw std::logic_error("TODO: not implemented yet!");
-		}
-
+		uint32_t lastProcessedCL = 0;
 		BranchRegistry branchRegistry;
-		BranchInfo rootInfo = { rootBranchName, rootBranch };
-		auto rootID = branchRegistry.Add(rootInfo);
+		BranchRegistry::BranchID rootID = BranchRegistry::InvalidBranchID;
+		if(BranchRegistryFileExistsForRepo(srcPath)){
+			// Open branch registry file
+			auto lastCLAndBranchRegistry = LoadLastProcessedCLAndBranchRegistryFromFile(srcPath);
+			lastProcessedCL = std::get<0>(lastCLAndBranchRegistry);
+			branchRegistry = std::get<1>(lastCLAndBranchRegistry);
 
-		for(const auto& change : changes) {
-			ProcessCLForBranchRegistry(p4, std::stoi(change.number), branchRegistry, rootID);
-
-			SUCCESS("CL " << change.number << " was processed for the BranchRegistry.");
+			rootID = branchRegistry.GetBranchID(rootBranch);
+		} else {
+			const BranchInfo rootInfo = { rootBranchName, rootBranch };
+			rootID = branchRegistry.Add(rootInfo);
 		}
 
-		SaveLastProcessedCLAndBranchRegistryToFile(srcPath, std::stoi(changes.back().number), branchRegistry);
+		// If the last processed CL is the same as the last CL in the list, we have nothing to do
+		if (lastProcessedCL != std::stoi(changes.back().number)) {
+			// Prepare to be potentially interrupted: store the branch registry and its out path in a global variable,
+			//   so the signal handler will be able to serialize the state we have so far
+			gPBranchRegistryPath = &srcPath;
+			gPBranchRegistry = &branchRegistry;
+
+			for(const auto& change : changes) {
+				// Skip already processed changelists (if any)
+				if (std::stoi(change.number) <= lastProcessedCL) {
+					continue;
+				}
+
+				// Quirk for interruptibility: we perform processing of each CL in a separate thread, sequentially... :(
+				ThreadPool::GetSingleton()->AddJob([&](P4API* p4)
+				{
+					ProcessCLForBranchRegistry(*p4, std::stoi(change.number), branchRegistry, rootID);
+
+					SUCCESS("CL " << change.number << " was processed for the BranchRegistry.");
+				});
+
+				ThreadPool::GetSingleton()->Wait();
+
+				gPlastProcessedCL = &change.number;
+			}
+
+			// If we are unlucky enough to be interrupted here, we will have to start over from scratch. But this is the only
+			//   way to avoid a nasty race condition.
+			gPBranchRegistry = nullptr;
+
+			// Make "sure" that serialization of the registry is not interrupted by running it in the thread pool
+			ThreadPool::GetSingleton()->AddJob([&](P4API* p4)
+			{
+				SaveLastProcessedCLAndBranchRegistryToFile(srcPath, std::stoi(changes.back().number), branchRegistry);
+			});
+
+			ThreadPool::GetSingleton()->Wait();
+		}
 	}
 
 	// TODO what the hell do we do with this when in auto-branch mode?
@@ -463,6 +507,12 @@ void SignalHandler(sig_atomic_t s)
 	ERR("Signal Received: " << strsignal(s));
 
 	ThreadPool::GetSingleton()->ShutDown();
+
+	// The thread pool is shut down at this point, so no one should be modifying the branch registry instance at this point
+	//  So in theory, it should be safe to serialize its state
+	if(gPBranchRegistry) {
+		SaveLastProcessedCLAndBranchRegistryToFile(*gPBranchRegistryPath, std::stoi(*gPlastProcessedCL), *gPBranchRegistry);
+	}
 
 	std::exit(s);
 }

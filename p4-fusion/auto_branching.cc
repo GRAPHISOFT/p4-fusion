@@ -152,7 +152,34 @@ std::tuple<uint32_t, BranchRegistry> LoadLastProcessedCLAndBranchRegistryFromFil
 
 void SaveLastProcessedCLAndBranchRegistryToFile(const std::string& repoPath, uint32_t lastProcessedCL, const BranchRegistry& branchRegistry)
 {
-    
+    const std::string registryFilePath = RepoPathToRegistryFilePath(repoPath);
+
+    const FildesGuard fd(open(registryFilePath.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR));
+
+    if (fd.Get() == -1) {
+        throw std::runtime_error("Failed to open branch registry file");
+    }
+
+    rapidjson::Document document;
+    document.SetObject();
+
+    // Write the last change list number to the registry file
+    rapidjson::Value lastProcessedCLValue;
+    lastProcessedCLValue.SetInt(lastProcessedCL);
+    document.AddMember("lastProcessedCL", lastProcessedCLValue, document.GetAllocator());
+
+    // Write the branch registry to the registry file
+    rapidjson::Value branchRegistryJSON = branchRegistry.SerializeToJSON(document);
+    document.AddMember("branchRegistry", branchRegistryJSON, document.GetAllocator());
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    document.Accept(writer);
+
+    ssize_t bytesWritten = write(fd.Get(), buffer.GetString(), buffer.GetSize());
+    if (bytesWritten == -1) {
+        throw std::runtime_error("Failed to write branch registry file");
+    }
 }
 
 void ProcessCLForBranchRegistry(P4API& p4, uint32_t clNum, BranchRegistry& branchRegistry, BranchRegistry::BranchID& rootID)
@@ -161,7 +188,7 @@ void ProcessCLForBranchRegistry(P4API& p4, uint32_t clNum, BranchRegistry& branc
 
     for(const auto& fileData : fileLogResult.GetFileData()) {
         if(fileData.GetHow() != "branch from") {
-            continue;   // For discovering branches, this is the only type that bears any useful information
+            continue;   // For discovering branches, this is the integration type we are interested in
         }
 
         const P4Path childFilePath = fileData.GetDepotFile();
@@ -175,5 +202,19 @@ void ProcessCLForBranchRegistry(P4API& p4, uint32_t clNum, BranchRegistry& branc
         auto branchInfos = DetermineBranchInfo(parentFilePath, childFilePath);
         BranchInfo& parentBranchInfo = branchInfos.first;
         BranchInfo& childBranchInfo = branchInfos.second;
+
+        // Parent not in registry - uninteresting branch
+        if(!branchRegistry.Contains(parentBranchInfo.branchPath))
+            continue;
+
+        // Add the child branch to the registry - if not already present
+        BranchRegistry::BranchID childBranchID = BranchRegistry::InvalidBranchID;
+        if(!branchRegistry.Contains(childBranchInfo.branchPath)) {
+            childBranchID = branchRegistry.Add(childBranchInfo);
+        } else {
+            childBranchID = branchRegistry.GetBranchID(childBranchInfo.branchPath);
+        }
+
+        branchRegistry.AddParentRef(childBranchID, parentBranchInfo.branchPath);
     }
 }

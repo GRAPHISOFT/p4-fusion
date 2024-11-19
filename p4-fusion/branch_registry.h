@@ -51,7 +51,7 @@ public:
     void AddParentRef(BranchID childID, P4Path parentPath);
     void AddParentRef(BranchID childID, BranchID parentID);
 
-    bool Contains(const std::string& path) const;
+    bool Contains(const P4Path& path) const;
     
     BranchID GetBranchID(const P4Path& path) const;
     const Entry& GetBranchEntry(const P4Path& path) const;

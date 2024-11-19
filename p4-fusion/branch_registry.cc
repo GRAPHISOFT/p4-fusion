@@ -48,7 +48,7 @@ void BranchRegistry::AddParentRef(BranchID childID, BranchID parentID)
     }
 }
 
-bool BranchRegistry::Contains (const std::string& path) const
+bool BranchRegistry::Contains (const P4Path& path) const
 {
     return GetBranchID(path) != InvalidBranchID;
 }
