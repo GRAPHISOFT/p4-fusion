@@ -310,8 +310,8 @@ int Main(int argc, char** argv)
 				gPlastProcessedCL = &change.number;
 			}
 
-			// If we are unlucky enough to be interrupted here, we will have to start over from scratch. But this is the only
-			//   way to avoid a nasty race condition.
+			// If we are unlucky enough to be interrupted here, we will have to start over from scratch. But this is the
+			//	 only way to avoid a nasty race condition.
 			gPBranchRegistry = nullptr;
 
 			// Make "sure" that serialization of the registry is not interrupted by running it in the thread pool
