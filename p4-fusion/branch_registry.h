@@ -2,14 +2,15 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 
-#include "utils/p4_path.h"
+#include "utils/p4_depot_path.h"
 
 #include "rapidjson/document.h"
 
 struct BranchInfo {
-    P4Path::Part branchName;
-    P4Path branchPath;
+    P4DepotPath::Part branchName;
+    P4DepotPath branchPath;
 
     bool operator==(const BranchInfo& other) const
     {
@@ -48,13 +49,13 @@ public:
     static const BranchID InvalidBranchID = std::numeric_limits<BranchID>::max();
 
     BranchID Add(const BranchInfo& branch);
-    void AddParentRef(BranchID childID, P4Path parentPath);
+    void AddParentRef(BranchID childID, P4DepotPath parentPath);
     void AddParentRef(BranchID childID, BranchID parentID);
 
-    bool Contains(const P4Path& path) const;
+    bool Contains(const P4DepotPath& path) const;
     
-    BranchID GetBranchID(const P4Path& path) const;
-    const Entry& GetBranchEntry(const P4Path& path) const;
+    BranchID GetBranchID(const P4DepotPath& path) const;
+    const Entry& GetBranchEntry(const P4DepotPath& path) const;
 
     void RenameBranch(const std::string& path, const std::string& newName);
 
@@ -68,7 +69,7 @@ private:
     BranchID m_nextID = 0;
 
     std::unordered_map<BranchID, Entry> m_branchesByID;
-    std::unordered_map<P4Path, BranchID> m_branchesByPath;
+    std::unordered_map<P4DepotPath, BranchID> m_branchesByPath;
 
     bool Contains(BranchID id) const;
 };

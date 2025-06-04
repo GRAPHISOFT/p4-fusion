@@ -3,13 +3,12 @@
 #include <string>
 #include <vector>
 
-class P4Path {
+// A class representing a file spec in depot syntax, without wildcards, revspec, etc.
+class P4DepotPath {
 public:
-    friend class std::hash<P4Path>;
-    
-    class InvalidPathException : public std::exception {
+    class InvalidDepotPathException : public std::exception {
     public:
-        InvalidPathException(const std::string& path);
+        InvalidDepotPathException(const std::string& depotPath);
 
         const char* what() const noexcept override;
 
@@ -36,16 +35,10 @@ public:
 
     using Parts = std::vector<Part>;
 
-    P4Path();
-    P4Path(const std::string& path);
-    P4Path(std::string&& path);
-    P4Path(Parts::const_iterator begin, Parts::const_iterator end);
-    P4Path(const Parts& parts);
-
-    P4Path(const P4Path& other) = default;
-    P4Path& operator=(const P4Path& other) = default;
-
-    bool IsEmpty() const;
+    P4DepotPath(const std::string& path);
+    P4DepotPath(std::string&& path);
+    P4DepotPath(Parts::const_iterator begin, Parts::const_iterator end);
+    P4DepotPath(const Parts& parts);
 
     // Might throw std::out_of_range or std::invalid_argument
     Parts Splice(size_t index_begin, size_t index_end) const;
@@ -56,8 +49,8 @@ public:
     Parts GetParts () const;
 
     // Comparison operators
-    bool operator==(const P4Path& other) const;
-    bool operator!=(const P4Path& other) const;
+    bool operator==(const P4DepotPath& other) const;
+    bool operator!=(const P4DepotPath& other) const;
 
 private:
     std::string m_rawPath;
@@ -66,9 +59,9 @@ private:
 
 namespace std {
     template <>
-    struct hash<P4Path> {
-        size_t operator()(const P4Path& path) const {
-            return std::hash<std::string>()(path.m_normalizedPath);
+    struct hash<P4DepotPath> {
+        size_t operator()(const P4DepotPath& path) const {
+            return std::hash<std::string>()(path.AsString());
         }
     };
 }

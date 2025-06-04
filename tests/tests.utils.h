@@ -94,6 +94,16 @@ int TestUtils()
 		TEST(actual, expected);
 	}
 
+	TEST(STDHelpers::ToLower(""), "");
+	TEST(STDHelpers::ToLower("abc"), "abc");
+	TEST(STDHelpers::ToLower("ABC"), "abc");
+	TEST(STDHelpers::ToLower("AbC"), "abc");
+	TEST(STDHelpers::ToLower("aBc123"), "abc123");
+	TEST(STDHelpers::ToLower("123"), "123");
+	TEST(STDHelpers::ToLower("aBc123!@#"), "abc123!@#");
+	TEST(STDHelpers::ToLower("Hello world"), "hello world");
+
+
 	TEST_END();
 	return TEST_EXIT_CODE();
 }

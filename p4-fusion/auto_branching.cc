@@ -19,11 +19,11 @@ std::string RepoPathToRegistryFilePath(const std::string& repoPath)
     return parentPath + "/" + registryFileName;
 }
 
-static const P4Path::Part BranchNameMain = "Main";
-static const P4Path::Part BranchNameRelease = "Release";
+static const P4DepotPath::Part BranchNameMain = "Main";
+static const P4DepotPath::Part BranchNameRelease = "Release";
 
 // From a "parent" and "child" P4 path, this function determines the paths and names of the branches that the files belong to
-std::pair<BranchInfo, BranchInfo> DetermineBranchInfo(const P4Path& parentPath, const P4Path& childPath)
+std::pair<BranchInfo, BranchInfo> DetermineBranchInfo(const P4DepotPath& parentPath, const P4DepotPath& childPath)
 {
     // The algorithm is dead simple: iterate on the path components of the parent and child paths starting from the end,
     //  and when there is a difference, that's where the branch is located. The name of the branch is the last component.
@@ -33,8 +33,8 @@ std::pair<BranchInfo, BranchInfo> DetermineBranchInfo(const P4Path& parentPath, 
     // There are some edge cases to consider as well (see comments below). Overall, it's practically impossible to
     //  account for all edge cases, since Perforce provides an amazing (or horrifying, if you will) degree of freedom.
 
-    const P4Path::Parts& parentPathParts = parentPath.GetParts();
-    const P4Path::Parts& childPathParts = childPath.GetParts();
+    const P4DepotPath::Parts& parentPathParts = parentPath.GetParts();
+    const P4DepotPath::Parts& childPathParts = childPath.GetParts();
 
     const size_t nParentParts = parentPathParts.size();
     const size_t nChildParts = childPathParts.size();
@@ -52,15 +52,15 @@ std::pair<BranchInfo, BranchInfo> DetermineBranchInfo(const P4Path& parentPath, 
             //  components, there are cases when the branch names are the same.
             //  e.g.: //Products/A/Main and //Releases/v13/Main
             if(nChildPartsRemaining >= 1 && nParentPartsRemaining >= 1) {
-                const P4Path::Part& prevParentPart = *(parentPartIter - 1);
-                const P4Path::Part& prevChildPart = *(childPartIter - 1);
+                const P4DepotPath::Part& prevParentPart = *(parentPartIter - 1);
+                const P4DepotPath::Part& prevChildPart = *(childPartIter - 1);
 
                 // In this case, we stop, but only if the next path component differs
                 // Consider: //Project/A/ext/curl/main and //Project/B/ext/curl/main
                 // We don't want to get //Project/A/ext/curl //Project/B/ext/curl here...
                 if(prevParentPart != prevChildPart) {
-                    const P4Path parentBranchPath(parentPathParts.begin(), parentPathParts.begin() + nParentPartsRemaining);
-                    const P4Path childBranchPath(childPathParts.begin(), childPathParts.begin() + nChildPartsRemaining);
+                    const P4DepotPath parentBranchPath(parentPathParts.begin(), parentPathParts.begin() + nParentPartsRemaining);
+                    const P4DepotPath childBranchPath(childPathParts.begin(), childPathParts.begin() + nChildPartsRemaining);
 
                     const BranchInfo parentBranchInfo = { parentPathParts[nParentPartsRemaining - 1], parentBranchPath };
                     const BranchInfo childBranchInfo = { childPathParts[nChildPartsRemaining - 1], childBranchPath };
@@ -76,16 +76,16 @@ std::pair<BranchInfo, BranchInfo> DetermineBranchInfo(const P4Path& parentPath, 
             //  e.g.: //Products/Main/test.cpp and //Releases/v1.1/Main/test.cpp
             //  In this case, the above approach would yield parent branch //Products and //Releases/v1.1
             if (nParentPartsRemaining <= 1 || nChildPartsRemaining <= 1) {
-                P4Path previousParentPath = P4Path(parentPathParts.begin(), parentPathParts.begin() + nParentPartsRemaining + 1);
-                P4Path previousChildPath = P4Path(childPathParts.begin(), childPathParts.begin() + nChildPartsRemaining + 1);
+                P4DepotPath previousParentPath = P4DepotPath(parentPathParts.begin(), parentPathParts.begin() + nParentPartsRemaining + 1);
+                P4DepotPath previousChildPath = P4DepotPath(childPathParts.begin(), childPathParts.begin() + nChildPartsRemaining + 1);
 
                 const BranchInfo parentBranchInfo = { parentPathParts[nParentPartsRemaining], previousParentPath };
                 const BranchInfo childBranchInfo = { childPathParts[nChildPartsRemaining], previousChildPath };
 
                 return { parentBranchInfo, childBranchInfo };
             } else {
-                const P4Path parentBranchPath(parentPathParts.begin(), parentPathParts.begin() + nParentPartsRemaining);
-                const P4Path childBranchPath(childPathParts.begin(), childPathParts.begin() + nChildPartsRemaining);
+                const P4DepotPath parentBranchPath(parentPathParts.begin(), parentPathParts.begin() + nParentPartsRemaining);
+                const P4DepotPath childBranchPath(childPathParts.begin(), childPathParts.begin() + nChildPartsRemaining);
 
                 const BranchInfo parentBranchInfo = { parentPathParts[nParentPartsRemaining - 1], parentBranchPath };
                 const BranchInfo childBranchInfo = { childPathParts[nChildPartsRemaining - 1], childBranchPath };
@@ -191,8 +191,8 @@ void ProcessCLForBranchRegistry(P4API& p4, uint32_t clNum, BranchRegistry& branc
             continue;   // For discovering branches, this is the integration type we are interested in
         }
 
-        const P4Path childFilePath = fileData.GetDepotFile();
-        const P4Path parentFilePath = fileData.GetFromDepotFile();
+        const P4DepotPath childFilePath = fileData.GetDepotFile();
+        const P4DepotPath parentFilePath = fileData.GetFromDepotFile();
 
         // Weird, but it is (or was?) possible to branch a file from itself (from a previous revision, which was later deleted)
         if(childFilePath == parentFilePath){

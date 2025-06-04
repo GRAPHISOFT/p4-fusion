@@ -14,7 +14,7 @@ BranchRegistry::BranchID BranchRegistry::Add(const BranchInfo& branch)
     return m_nextID++;
 }
 
-void BranchRegistry::AddParentRef(BranchID childID, P4Path parentPath)
+void BranchRegistry::AddParentRef(BranchID childID, P4DepotPath parentPath)
 {
     if(!Contains(parentPath.AsString()))
     {
@@ -48,18 +48,18 @@ void BranchRegistry::AddParentRef(BranchID childID, BranchID parentID)
     }
 }
 
-bool BranchRegistry::Contains (const P4Path& path) const
+bool BranchRegistry::Contains (const P4DepotPath& path) const
 {
     return GetBranchID(path) != InvalidBranchID;
 }
 
-BranchRegistry::BranchID BranchRegistry::GetBranchID (const P4Path& path) const
+BranchRegistry::BranchID BranchRegistry::GetBranchID (const P4DepotPath& path) const
 {
     return m_branchesByPath.find(path) != m_branchesByPath.end() ?
         m_branchesByPath.at(path) : InvalidBranchID;
 }
 
-const BranchRegistry::Entry& BranchRegistry::GetBranchEntry(const P4Path& path) const
+const BranchRegistry::Entry& BranchRegistry::GetBranchEntry(const P4DepotPath& path) const
 {
     return m_branchesByID.at(m_branchesByPath.at(path));
 }
@@ -131,7 +131,7 @@ BranchRegistry BranchRegistry::DeserializeFromJSON(const rapidjson::Value& value
             throw std::runtime_error("Branch registry JSON array contains non-object element!");
         }
         
-        BranchInfo branchInfo = {branch["name"].GetString(), P4Path(branch["path"].GetString())};
+        BranchInfo branchInfo = {branch["name"].GetString(), P4DepotPath(branch["path"].GetString())};
 
         ParentCandidates parentCandidates;
         for (const auto& parent : branch["parentCandidates"].GetArray())

@@ -1,24 +1,24 @@
-#include "p4_path.h"
+#include "p4_depot_path.h"
 
 #include "std_helpers.h"
 
 namespace {
 
-bool IsValidP4Path(const std::string& path)
+bool IsValidPath(const std::string& depotPath)
 {
     // Best-effort validation...
 
-    if(path.empty())
+    if(depotPath.empty())
     {
         return false;
     }
 
-    if(!STDHelpers::StartsWith(path, "//"))
+    if(!STDHelpers::StartsWith(depotPath, "//"))
     {
         return false;
     }
 
-    if(STDHelpers::Contains(path, "\\"))
+    if(STDHelpers::Contains(depotPath, "\\"))
     {
         return false;
     }
@@ -26,7 +26,7 @@ bool IsValidP4Path(const std::string& path)
     return true;
 }
 
-std::string NormalizeP4Path(const std::string& path)
+std::string NormalizePath(const std::string& path)
 {
     std::string result = STDHelpers::ToLower(path);
     if(STDHelpers::EndsWith(result, "/"))
@@ -39,69 +39,65 @@ std::string NormalizeP4Path(const std::string& path)
 
 }
 
-P4Path::InvalidPathException::InvalidPathException(const std::string& path)
+P4DepotPath::InvalidDepotPathException::InvalidDepotPathException(const std::string& path)
     : m_path(path)
 {
 }
 
-const char* P4Path::InvalidPathException::what() const noexcept
+const char* P4DepotPath::InvalidDepotPathException::what() const noexcept
 {
-    m_what = std::string ("Invalid P4 path: " + m_path);
+    m_what = std::string ("Invalid P4 depot path: " + m_path);
     
     return m_what.c_str();
 }
 
-P4Path::Part::Part(const std::string& part): Part(std::string(part))
+P4DepotPath::Part::Part(const std::string& part): Part(std::string(part))
 {
 }
 
-P4Path::Part::Part(std::string&& part)
+P4DepotPath::Part::Part(std::string&& part)
 {
     m_rawPart = std::move(part);
     m_normalizedPart = STDHelpers::ToLower(m_rawPart);
 }
 
-P4Path::Part::Part(const char* pPartStr)
+P4DepotPath::Part::Part(const char* pPartStr)
 {
     m_rawPart = pPartStr;
     m_normalizedPart = STDHelpers::ToLower(pPartStr);
 }
 
-const std::string& P4Path::Part::AsString() const
+const std::string& P4DepotPath::Part::AsString() const
 {
     return m_rawPart;
 }
 
-bool P4Path::Part::operator==(const Part& other) const
+bool P4DepotPath::Part::operator==(const Part& other) const
 {
     return m_normalizedPart == other.m_normalizedPart;
 }
 
-bool P4Path::Part::operator!=(const Part& other) const
+bool P4DepotPath::Part::operator!=(const Part& other) const
 {
     return !(*this == other);
 }
 
-P4Path::P4Path()
+P4DepotPath::P4DepotPath(const std::string& path): P4DepotPath(std::string(path))
 {
 }
 
-P4Path::P4Path(const std::string& path): P4Path(std::string(path))
+P4DepotPath::P4DepotPath(std::string&& path)
 {
-}
-
-P4Path::P4Path(std::string&& path)
-{
-    if (!IsValidP4Path (path))
+    if (!IsValidPath (path))
     {
-        throw InvalidPathException(path);
+        throw InvalidDepotPathException(path);
     }
 
     m_rawPath = std::move(path);
-    m_normalizedPath = NormalizeP4Path(m_rawPath);
+    m_normalizedPath = NormalizePath(m_rawPath);
 }
 
-P4Path::P4Path(Parts::const_iterator begin, Parts::const_iterator end)
+P4DepotPath::P4DepotPath(Parts::const_iterator begin, Parts::const_iterator end)
 {
     std::string path = "//";
     for (auto it = begin; it != end; ++it)
@@ -110,20 +106,15 @@ P4Path::P4Path(Parts::const_iterator begin, Parts::const_iterator end)
     }
 
     m_rawPath = path;
-    m_normalizedPath = NormalizeP4Path(m_rawPath);
+    m_normalizedPath = NormalizePath(m_rawPath);
 }
 
-P4Path::P4Path(const Parts& parts):
-    P4Path(parts.begin(), parts.end())
+P4DepotPath::P4DepotPath(const Parts& parts):
+    P4DepotPath(parts.begin(), parts.end())
 {
 }
 
-bool P4Path::IsEmpty() const
-{
-    return m_normalizedPath.empty();
-}
-
-P4Path::Parts P4Path::Splice(size_t index_begin, size_t index_end) const
+P4DepotPath::Parts P4DepotPath::Splice(size_t index_begin, size_t index_end) const
 {
     auto parts = GetParts();
 
@@ -140,19 +131,19 @@ P4Path::Parts P4Path::Splice(size_t index_begin, size_t index_end) const
     return { parts.begin() + index_begin, parts.begin() + index_end + 1 };  // +1: half-open range blues
 }
 
-const std::string& P4Path::AsString() const
+const std::string& P4DepotPath::AsString() const
 {
     return m_rawPath;
 }
 
-P4Path::Part P4Path::GetDepotName () const
+P4DepotPath::Part P4DepotPath::GetDepotName () const
 {
     return GetParts ()[0];
 }
 
-std::vector<P4Path::Part> P4Path::GetParts() const
+std::vector<P4DepotPath::Part> P4DepotPath::GetParts() const
 {
-    std::vector<P4Path::Part> result;
+    std::vector<P4DepotPath::Part> result;
     std::string remainder = m_rawPath;
     STDHelpers::Erase(remainder, "//");
 
@@ -166,12 +157,12 @@ std::vector<P4Path::Part> P4Path::GetParts() const
 	return result;
 }
 
-bool P4Path::operator==(const P4Path& other) const
+bool P4DepotPath::operator==(const P4DepotPath& other) const
 {
 	return m_normalizedPath == other.m_normalizedPath;
 }
 
-bool P4Path::operator!=(const P4Path& other) const
+bool P4DepotPath::operator!=(const P4DepotPath& other) const
 {
     return !(*this == other);
 }

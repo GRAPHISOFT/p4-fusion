@@ -14,6 +14,23 @@
 #include "minitrace.h"
 #include "utils/std_helpers.h"
 
+#include <CoreFoundation/CoreFoundation.h>
+
+namespace {
+
+static void GetStringAsNFC (const std::string& str, char* buffer, size_t bufferLength)
+{
+	CFStringRef cfString = CFStringCreateWithCString(NULL, str.c_str(), kCFStringEncodingUTF8);
+	CFMutableStringRef cfMutableString = CFStringCreateMutableCopy(NULL, 0, cfString);
+	CFStringNormalize (cfMutableString, kCFStringNormalizationFormC);
+	CFStringGetCString (cfMutableString, buffer, bufferLength, kCFStringEncodingUTF8);
+
+	CFRelease (cfString);
+	CFRelease(cfMutableString);
+}
+
+}
+
 #define GIT2(x)                                                                \
 	do                                                                         \
 	{                                                                          \
@@ -232,7 +249,20 @@ void GitAPI::AddFileToIndex(const std::string& relativePath, const std::vector<c
 		entry.mode = GIT_FILEMODE_BLOB_EXECUTABLE; // 0100755
 	}
 
-	entry.path = relativePath.c_str();
+	// Convert the path to NFC (precomposed form) first. We need to do this because of complexities around decomposed paths
+	//   and how they are handled in git. Long story short: on macOS, configuration option core.precomposeUnicode
+	//   defaults to true. This makes git "convert" decomposed paths to precomposed paths, when encountered during
+	//   filesystem operations. This was probably created to handle the weirdness of the HFS+ filesystem, which
+	//   stores file names in decomposed form. However, this setting also implies that there are no decomposed paths
+	//   in the repository. If this assumption is broken, it causes issues. 
+	//
+	// As a workaround, we always convert paths to precomposed form, avoiding this issue altogether (and avoiding
+	//   mandating setting core.precomposeUnicode to false...). This way, the resulting repo probably won't properly
+	//   checkout on HFS+ systems, but that's fine for us, as we use APFS everywhere...
+	char pathNFC[GIT_PATH_MAX];
+	GetStringAsNFC(relativePath, pathNFC, GIT_PATH_MAX);
+
+	entry.path = pathNFC;
 
 	GIT2(git_index_add_from_buffer(m_Index, &entry, contents.data(), contents.size()));
 }
@@ -241,7 +271,11 @@ void GitAPI::RemoveFileFromIndex(const std::string& relativePath)
 {
 	MTR_SCOPE("Git", __func__);
 
-	GIT2(git_index_remove_bypath(m_Index, relativePath.c_str()));
+	// See comment in AddFileToIndex
+	char pathNFC[GIT_PATH_MAX];
+	GetStringAsNFC(relativePath, pathNFC, GIT_PATH_MAX);
+
+	GIT2(git_index_remove_bypath(m_Index, pathNFC));
 }
 
 std::string GitAPI::Commit(
