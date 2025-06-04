@@ -17,6 +17,7 @@ public:
 	static bool Contains(const std::string& str, const std::string& subStr);
 	static void Erase(std::string& source, const std::string& subStr);
 	static void StripSurrounding(std::string& source, const char c);
+	static std::string ToLower(const std::string& source);
 
 	// Split the source into two strings at the first character 'c' after position 'startAt'.  The 'c' character is
 	// not included in the returned strings.  Text before the 'startAt' will not be included.

@@ -25,6 +25,22 @@
 		}                                                \
 	} while (false)
 
+#define TEST_NEQ(value, expected)                         \
+	do                                                   \
+	{                                                    \
+		bool result = (value != expected);               \
+		if (result)                                      \
+		{                                                \
+			PRINT(#value << " != " << #expected);        \
+		}                                                \
+		else                                             \
+		{                                                \
+			failedTestCaseCount++;                       \
+			ERR(#value << " == " << result << " but == " \
+			           << #expected << " (expected)");   \
+		}                                                \
+	} while (false)
+
 #define TEST_END()                                          \
 	if (failedTestCaseCount != 0)                           \
 	{                                                       \
