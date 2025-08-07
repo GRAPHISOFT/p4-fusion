@@ -408,6 +408,12 @@ LFSClient::LFSClient(GitAPI& gitAPI, const std::string& serverUrl, const std::st
 
 std::vector<char> LFSClient::CreatePointerFileContents(const std::vector<char>& fileContents) const
 {
+	// From the specs: "an empty file is the pointer for an empty file. That is, empty files are passed through LFS without any change."
+	if(fileContents.empty())
+	{
+		return {};
+	}
+
 	unsigned char hash[SHA256_DIGEST_LENGTH];
 	SHA256(reinterpret_cast<const unsigned char*>(fileContents.data()), fileContents.size(), hash);
 
