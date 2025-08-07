@@ -83,17 +83,16 @@ void ThreadPool::ShutDown()
 void ThreadPool::Resize(int size)
 {
 	ShutDown();
-	Initialize(size, m_LFSClient);
+	Initialize(size);
 }
 
-void ThreadPool::Initialize(int size, LFSClient* lfsClient)
+void ThreadPool::Initialize(int size)
 {
 	m_HasShutDownBeenCalled = false;
 	m_ShouldStop = false;
 	m_JobsProcessing = 0;
 
 	m_P4Contexts.resize(size);
-	m_LFSClient = lfsClient;
 
 	for (int i = 0; i < size; i++)
 	{
@@ -125,7 +124,7 @@ void ThreadPool::Initialize(int size, LFSClient* lfsClient)
 
 				    try
 				    {
-					    job(localP4, m_LFSClient);
+					    job(localP4);
 				    }
 				    catch (const std::exception& e)
 				    {
@@ -134,7 +133,8 @@ void ThreadPool::Initialize(int size, LFSClient* lfsClient)
 					    m_ThreadExceptions[i] = std::current_exception();
 				    }
 				    m_JobsProcessing--;
-			    } }));
+			    }
+		    }));
 	}
 }
 

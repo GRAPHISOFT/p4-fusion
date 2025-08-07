@@ -16,7 +16,6 @@
 #include <typeinfo>
 #include <csignal>
 #include <iterator>
-#include <fstream>
 
 #include "common.h"
 
@@ -28,7 +27,6 @@
 #include "p4_api.h"
 #include "git_api.h"
 #include "branch_set.h"
-#include "lfs_client.h"
 
 #include "p4/p4libs.h"
 #include "minitrace.h"
@@ -61,10 +59,6 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->OptionalParameterList("--exclude", "A regex used to exclude files from the conversion. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--excludeLogPath", "", "Path to a file where the excluded files will be logged.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
-	Arguments::GetSingleton()->OptionalParameter("--lfsSpecPath", "", "File path containings path specs for files to be handled by Git LFS.");
-	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
-	Arguments::GetSingleton()->OptionalParameter("--lfsUsername", "", "Git LFS username for basic access authentication.");
-	Arguments::GetSingleton()->OptionalParameter("--lfsPassword", "", "Git LFS password for basic access authentication.");
 
 	PRINT("p4-fusion " P4_FUSION_VERSION);
 
@@ -108,42 +102,6 @@ int Main(int argc, char** argv)
 		}
 	}
 	const bool streamMappings = Arguments::GetSingleton()->GetStreamMappings() != "false";
-
-	const std::string lfsSpecPath = Arguments::GetSingleton()->GetLFSSpecPath();
-	const std::string lfsServerUrl = Arguments::GetSingleton()->GetLFSServerUrl();
-	const std::string lfsUsername = Arguments::GetSingleton()->GetLFSUsername();
-	const std::string lfsPassword = Arguments::GetSingleton()->GetLFSPassword();
-
-	GitAPI git(fsyncEnable);
-	std::unique_ptr<LFSClient> lfsClient;
-	if (!lfsSpecPath.empty() && !lfsServerUrl.empty())
-	{
-		std::vector<std::string> lfsPatterns;
-		std::ifstream lfsFile(lfsSpecPath);
-		if (!lfsFile.is_open())
-		{
-			ERR("Failed to open LFS spec file: " << lfsSpecPath);
-			return 1;
-		}
-		std::string line;
-		while (std::getline(lfsFile, line))
-		{
-			// Ignore empty lines and comments
-			if (!line.empty() && line[0] != '#')
-			{
-				lfsPatterns.push_back(line);
-			}
-		}
-		lfsFile.close();
-
-		lfsClient.reset(new LFSClient(git, lfsServerUrl, lfsUsername, lfsPassword, lfsPatterns));
-		PRINT("Initialized LFS client with server URL: " << lfsServerUrl);
-
-		if (!includeBinaries)
-		{
-			WARN("LFS support is enabled, but binaries are excluded. This is probably not what you want.");
-		}
-	}
 
 	PRINT("Running p4-fusion from: " << argv[0]);
 
@@ -318,6 +276,8 @@ int Main(int argc, char** argv)
 		PRINT("Excluded paths: " << exclusions.size());
 	}
 
+	GitAPI git(fsyncEnable);
+
 	if (!git.InitializeRepository(srcPath))
 	{
 		ERR("Could not initialize Git repository. Exiting.");
@@ -376,7 +336,7 @@ int Main(int argc, char** argv)
 	SUCCESS("Found " << changes.size() << " uncloned CLs starting from CL " << changes.front().number << " to CL " << changes.back().number);
 
 	PRINT("Creating " << networkThreads << " network threads");
-	ThreadPool::GetSingleton()->Initialize(networkThreads, lfsClient.get());
+	ThreadPool::GetSingleton()->Initialize(networkThreads);
 	SUCCESS("Created " << ThreadPool::GetSingleton()->GetThreadCount() << " threads in thread pool");
 
 	int startupDownloadsCount = 0;
@@ -400,11 +360,10 @@ int Main(int argc, char** argv)
 	{
 		ChangeList& cl = changes.at(currentCL);
 
-		// Start running `p4 print` on changed files when the describe is finished. Upload LFS files if needed.
-		cl.StartDownloadAndLFSUpload(printBatch);
+		// Start running `p4 print` on changed files when the describe is finished
+		cl.StartDownload(printBatch);
 	}
 
-	git.CreateIndex(lfsClient.get());
 	SUCCESS("Queued first " << startupDownloadsCount << " CLs up until CL " << changes.at(lastDownloadedCL).number << " for downloading");
 
 	int timezoneMinutes = p4.Info().GetServerTimezoneMinutes();
@@ -419,6 +378,7 @@ int Main(int argc, char** argv)
 
 	PRINT("Last CL to start downloading is CL " << changes.at(lastDownloadedCL).number);
 
+	git.CreateIndex();
 	for (size_t i = 0; i < changes.size(); i++)
 	{
 		// See if the threadpool encountered any exceptions
@@ -436,7 +396,8 @@ int Main(int argc, char** argv)
 
 		ChangeList& cl = changes.at(i);
 
-		cl.WaitForBeingCommitReady();
+		// Ensure the files are downloaded before committing them to the repository
+		cl.WaitForDownload();
 
 		std::string fullName = cl.user;
 		std::string email = "deleted@user";
@@ -513,7 +474,7 @@ int Main(int argc, char** argv)
 			lastDownloadedCL++;
 			ChangeList& downloadCL = changes.at(lastDownloadedCL);
 			downloadCL.PrepareDownload(branchSet);
-			downloadCL.StartDownloadAndLFSUpload(printBatch);
+			downloadCL.StartDownload(printBatch);
 		}
 
 		// Occasionally flush the profiling data

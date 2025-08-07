@@ -11,12 +11,9 @@
 #include <utility>
 
 #include "common.h"
-
 #include "git2/oid.h"
-#include "git2/pathspec.h"
 
 struct git_repository;
-class LFSClient;
 
 class GitAPI
 {
@@ -39,10 +36,7 @@ public:
 
 	git_oid CreateBlob(const std::vector<char>& data);
 
-	git_pathspec* CreatePathSpec(const std::vector<std::string>& patterns);
-	void DestroyPathSpec(git_pathspec* pathSpec);
-
-	void CreateIndex(LFSClient* lfsClient);
+	void CreateIndex();
 	void SetActiveBranch(const std::string& branchName);
 	void AddFileToIndex(const std::string& relativePath, const std::vector<char>& contents, const bool plusx);
 	void RemoveFileFromIndex(const std::string& relativePath);

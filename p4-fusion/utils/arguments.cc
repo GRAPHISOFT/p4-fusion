@@ -65,12 +65,6 @@ bool Arguments::IsValid() const
 			return false;
 		}
 	}
-
-	const bool hasAnyLFSParam = !GetLFSSpecPath().empty() || !GetLFSServerUrl().empty() || !GetLFSUsername().empty() || !GetLFSPassword().empty();
-	const bool hasAllLFSParams = !GetLFSSpecPath().empty() && !GetLFSServerUrl().empty();
-	if (hasAnyLFSParam && !hasAllLFSParams)
-		return false;
-
 	return true;
 }
 

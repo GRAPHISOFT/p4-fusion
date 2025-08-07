@@ -60,8 +60,4 @@ public:
 	std::vector<std::string> GetBranches() const { return GetParameterList("--branch"); };
 	std::vector<std::string> GetExcludes() const { return GetParameterList("--exclude"); };
 	std::string GetExcludeLogPath() const { return GetParameter("--excludeLogPath"); };
-	std::string GetLFSSpecPath() const { return GetParameter("--lfsSpecPath"); }
-	std::string GetLFSServerUrl() const { return GetParameter("--lfsServerUrl"); }
-	std::string GetLFSUsername() const { return GetParameter("--lfsUsername"); }
-	std::string GetLFSPassword() const { return GetParameter("--lfsPassword"); }
 };
