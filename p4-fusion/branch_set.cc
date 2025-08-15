@@ -214,7 +214,7 @@ void branchIntegrationMap::addMerge(const std::string& sourceBranch, const std::
 }
 
 // Post condition: all returned FileData (e.g. filtered for git commit) have the relativePath set.
-std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vector<FileData>& cl) const
+std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vector<FileData>& cl, const LFSClient* lfsClient) const
 {
 	branchIntegrationMap branchMap;
 	for (auto& clFileData : cl)
@@ -223,6 +223,7 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 
 		// First, filter out files we don't want.
 		const std::string& depotFile = fileData.GetDepotFile();
+		std::string relativeDepotPath = stripBasePath(depotFile);
 		const bool matchesAnyExcludes = matchesExcludes(depotFile);
 		if (matchesAnyExcludes)
 		{
@@ -230,11 +231,14 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 			m_excludedFileDirs.insert(depotBasePath);
 		}
 
+		const bool isP4Binary = fileData.IsBinary();
+		const bool isLFSTracked = lfsClient && lfsClient->IsLFSTracked(relativeDepotPath);
+
 		if (
 		    // depot file should always be present.
 		    // The left side of the client view is the depot side.
 		    !m_view.IsInLeft(depotFile)
-		    || (!m_includeBinaries && fileData.IsBinary())
+		    || (!m_includeBinaries && isP4Binary)
 		    || STDHelpers::Contains(depotFile, "/.git/") // To avoid adding .git/ files in the Perforce history if any
 		    || STDHelpers::EndsWith(depotFile, "/.git") // To avoid adding a .git submodule file in the Perforce history if any
 		    || matchesAnyExcludes // Exclude files that match any excludes regexes
@@ -242,8 +246,13 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 		{
 			continue;
 		}
+
+		if (isP4Binary && m_includeBinaries && lfsClient && !isLFSTracked)
+		{
+			WARN("File " << depotFile << " at revision " << fileData.GetRevision() << " has filetype binary, but is not LFS tracked. It will be committed directly to the git repo.");
+		}
+
 		// Put logic for Absolutely do not dare map these files here, here :)
-		std::string relativeDepotPath = stripBasePath(depotFile);
 		if (relativeDepotPath.empty())
 		{
 			// Not under regular depot path, might be mapped in

@@ -18,6 +18,7 @@
 #include "commands/file_data.h"
 #include "commands/stream_result.h"
 #include "utils/std_helpers.h"
+#include "lfs_client.h"
 
 struct BranchedFileGroup
 {
@@ -103,7 +104,7 @@ public:
 	// This also has the side-effect of populating the relative path value in the file data.
 	//   ... the FileData object is copied, but it's underlying shared data is shared.  So, this
 	//       breaks the const.
-	std::unique_ptr<ChangedFileGroups> ParseAffectedFiles(const std::vector<FileData>& cl) const;
+	std::unique_ptr<ChangedFileGroups> ParseAffectedFiles(const std::vector<FileData>& cl, const LFSClient* lfsClient) const;
 
 	const std::unordered_set<std::string>& GetExcludedFileDirs() const { return m_excludedFileDirs; };
 };
