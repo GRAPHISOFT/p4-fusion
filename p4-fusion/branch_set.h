@@ -71,6 +71,7 @@ public:
 struct BranchSet
 {
 private:
+	GitAPI& m_gitApi;
 	// Technically, these should all be const.
 	const bool m_includeBinaries;
 	const std::vector<std::regex> m_excludes;
@@ -80,6 +81,8 @@ private:
 	const std::vector<StreamResult::MappingData> m_mappings;
 	const std::vector<StreamResult::MappingData> m_exclusions;
 	FileMap m_view;
+	git_pathspec* m_overrideToTextSpec;
+	git_pathspec* m_overrideToBinarySpec;
 
 	// stripBasePath remove the base path from the depot path, or "" if not in the base path.
 	std::string stripBasePath(const std::string& depotPath) const;
@@ -91,7 +94,18 @@ private:
 	bool matchesExcludes(const std::string& depotPath) const;
 
 public:
-	BranchSet(std::vector<std::string>& clientViewMapping, const std::string& baseDepotPath, const std::vector<std::string>& branches, const std::vector<StreamResult::MappingData>& mappings, const std::vector<StreamResult::MappingData>& exclusions, const bool includeBinaries, const std::vector<std::regex>& excludes);
+	BranchSet(GitAPI& gitAPI,
+			  const std::vector<std::string>& clientViewMapping, 
+			  const std::string& baseDepotPath, 
+			  const std::vector<std::string>& branches, 
+			  const std::vector<StreamResult::MappingData>& mappings, 
+			  const std::vector<StreamResult::MappingData>& exclusions, 
+			  const bool includeBinaries, 
+			  const std::vector<std::regex>& excludes,
+			  const std::vector<std::string>& overrideToTextSpecs,
+			  const std::vector<std::string>& overrideToBinarySpecs);
+
+	~BranchSet();
 
 	// HasMergeableBranch is there a branch model that requires integration history?
 	bool HasMergeableBranch() const { return !m_branches.empty(); };
