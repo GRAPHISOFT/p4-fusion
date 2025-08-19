@@ -367,18 +367,7 @@ bool PerformVerify(const std::string& username, const std::string& password, con
 	{
 		return false;
 	}
-
-	rapidjson::Document verifyDoc;
-	verifyDoc.SetObject();
-	rapidjson::Document::AllocatorType& verifyAllocator = verifyDoc.GetAllocator();
-	verifyDoc.AddMember("oid", rapidjson::StringRef(oid.c_str()), verifyAllocator);
-	verifyDoc.AddMember("size", static_cast<uint64_t>(fileSize), verifyAllocator);
-
-	rapidjson::StringBuffer verifyBuffer;
-	rapidjson::Writer<rapidjson::StringBuffer> verifyWriter(verifyBuffer);
-	verifyDoc.Accept(verifyWriter);
-	std::string verifyPayload = verifyBuffer.GetString();
-
+	std::string verifyPayload = CreateVerifyPayload(oid, fileSize);
 	struct curl_slist* verifyHeaders = nullptr;
 	verifyHeaders = curl_slist_append(verifyHeaders, "Content-Type: application/vnd.git-lfs+json");
 	verifyHeaders = curl_slist_append(verifyHeaders, "Accept: application/vnd.git-lfs+json");
