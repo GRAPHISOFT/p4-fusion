@@ -82,14 +82,14 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->OptionalParameterList("--exclude", "A regex used to exclude files from the conversion. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--excludeLogPath", "", "Path to a file where the excluded files will be logged.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
-	Arguments::GetSingleton()->OptionalParameter("--lfsSpecPath", "", "File path containings path specs for files to be handled by Git LFS.");
+	Arguments::GetSingleton()->OptionalParameter("--lfsSpecPath", "", "File path containing path specs for files to be handled by Git LFS.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsUsername", "", "Git LFS username for basic access authentication.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsPassword", "", "Git LFS password for basic access authentication.");
-	Arguments::GetSingleton()->OptionalParameter("--overrideToTextSpecPath", "", "File path containings path specs for files to be handled as text, even when their P4 type is binary or something else. "
+	Arguments::GetSingleton()->OptionalParameter("--overrideToTextSpecPath", "", "File path containing path specs for files to be handled as text, even when their P4 type is binary or something else. "
 																				 "Normally this results in them being committed to the Git repo instead of ignored. "
 																				 "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this only serves to silence a warning.");
-	Arguments::GetSingleton()->OptionalParameter("--overrideToBinarySpecPath", "", "File path containings path specs for files to be handled as binary, even when their P4 type is something else. "
+	Arguments::GetSingleton()->OptionalParameter("--overrideToBinarySpecPath", "", "File path containing path specs for files to be handled as binary, even when their P4 type is something else. "
 																				   "Normally this results in them being ignored instead of committed. "
 																				   "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing.");
 
