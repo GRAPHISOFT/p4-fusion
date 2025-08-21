@@ -280,12 +280,6 @@ void GitAPI::CreateIndex(LFSClient* lfsClient)
 			entry.mode = GIT_FILEMODE_BLOB;
 			entry.path = ".gitattributes";
 			GIT2(git_index_add_from_buffer(m_Index, &entry, gitAttrContents.data(), gitAttrContents.size()));
-
-			std::string lfsConfigContents = "[lfs]\nurl = \"" + lfsClient->GetServerUrl() + "\"\n";
-			git_index_entry entry2 = {};
-			entry2.mode = GIT_FILEMODE_BLOB;
-			entry2.path = ".lfsconfig";
-			GIT2(git_index_add_from_buffer(m_Index, &entry2, lfsConfigContents.data(), lfsConfigContents.size()));
 		}
 
 		// Create initial commit
