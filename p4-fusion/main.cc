@@ -37,7 +37,7 @@
 
 void SignalHandler(sig_atomic_t s);
 
-static std::unique_ptr<std::vector<std::string>> GetLinesFromFile(const std::string& filename)
+static std::unique_ptr<std::vector<std::string>> GetLinesFromFileWithoutComments(const std::string& filename)
 {
 	std::unique_ptr<std::vector<std::string>> lines(new std::vector<std::string>());
 	std::ifstream infile(filename);
@@ -87,11 +87,11 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->OptionalParameter("--lfsUsername", "", "Git LFS username for basic access authentication.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsPassword", "", "Git LFS password for basic access authentication.");
 	Arguments::GetSingleton()->OptionalParameter("--overrideToTextSpecPath", "", "File path containing path specs for files to be handled as text, even when their P4 type is binary or something else. "
-																				 "Normally this results in them being committed to the Git repo instead of ignored. "
-																				 "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this only serves to silence a warning.");
+	                                                                             "Normally this results in them being committed to the Git repo instead of ignored. "
+	                                                                             "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this only serves to silence a warning.");
 	Arguments::GetSingleton()->OptionalParameter("--overrideToBinarySpecPath", "", "File path containing path specs for files to be handled as binary, even when their P4 type is something else. "
-																				   "Normally this results in them being ignored instead of committed. "
-																				   "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing.");
+	                                                                               "Normally this results in them being ignored instead of committed. "
+	                                                                               "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing.");
 
 	PRINT("p4-fusion " P4_FUSION_VERSION);
 
@@ -145,8 +145,8 @@ int Main(int argc, char** argv)
 	std::unique_ptr<LFSClient> lfsClient;
 	if (!lfsSpecPath.empty() && !lfsServerUrl.empty())
 	{
-		std::unique_ptr<std::vector<std::string>> lfsPatterns = GetLinesFromFile(lfsSpecPath);
-		if (! lfsPatterns)
+		std::unique_ptr<std::vector<std::string>> lfsPatterns = GetLinesFromFileWithoutComments(lfsSpecPath);
+		if (!lfsPatterns)
 		{
 			return 1;
 		}
@@ -166,7 +166,7 @@ int Main(int argc, char** argv)
 	std::unique_ptr<std::vector<std::string>> overrideToBinarySpecs(new std::vector<std::string>());
 	if (!overrideToTextSpecPath.empty())
 	{
-		overrideToTextSpecs = GetLinesFromFile(overrideToTextSpecPath);
+		overrideToTextSpecs = GetLinesFromFileWithoutComments(overrideToTextSpecPath);
 		if (!overrideToTextSpecs)
 		{
 			return 1;
@@ -174,7 +174,7 @@ int Main(int argc, char** argv)
 	}
 	if (!overrideToBinarySpecPath.empty())
 	{
-		overrideToBinarySpecs = GetLinesFromFile(overrideToBinarySpecPath);
+		overrideToBinarySpecs = GetLinesFromFileWithoutComments(overrideToBinarySpecPath);
 		if (!overrideToBinarySpecs)
 		{
 			return 1;

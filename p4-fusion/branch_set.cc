@@ -106,18 +106,18 @@ std::vector<Branch> createBranchesFromPaths(const std::vector<std::string>& bran
 	return parsed;
 }
 
-BranchSet::BranchSet(GitAPI& gitAPI, 
-					 const std::vector<std::string>& clientViewMapping, 
-					 const std::string& baseDepotPath, 
-					 const std::vector<std::string>& branches, 
-					 const std::vector<StreamResult::MappingData>& mappings, 
-					 const std::vector<StreamResult::MappingData>& exclusions, 
-					 const bool includeBinaries, 
-					 const std::vector<std::regex>& excludes,
-			  		 const std::vector<std::string>& overrideToTextSpecs,
-			  		 const std::vector<std::string>& overrideToBinarySpecs)
-    : m_gitApi (gitAPI)
-	, m_branches(createBranchesFromPaths(branches))
+BranchSet::BranchSet(GitAPI& gitAPI,
+    const std::vector<std::string>& clientViewMapping,
+    const std::string& baseDepotPath,
+    const std::vector<std::string>& branches,
+    const std::vector<StreamResult::MappingData>& mappings,
+    const std::vector<StreamResult::MappingData>& exclusions,
+    const bool includeBinaries,
+    const std::vector<std::regex>& excludes,
+    const std::vector<std::string>& overrideToTextSpecs,
+    const std::vector<std::string>& overrideToBinarySpecs)
+    : m_gitApi(gitAPI)
+    , m_branches(createBranchesFromPaths(branches))
     , m_mappings(mappings)
     , m_exclusions(exclusions)
     , m_includeBinaries(includeBinaries)
@@ -138,8 +138,8 @@ BranchSet::BranchSet(GitAPI& gitAPI,
 		m_basePath = baseDepotPath;
 	}
 
-	m_overrideToTextSpec = overrideToTextSpecs.empty () ? nullptr : m_gitApi.CreatePathSpec(overrideToTextSpecs);
-	m_overrideToBinarySpec = overrideToBinarySpecs.empty () ? nullptr : m_gitApi.CreatePathSpec(overrideToBinarySpecs);
+	m_overrideToTextSpec = overrideToTextSpecs.empty() ? nullptr : m_gitApi.CreatePathSpec(overrideToTextSpecs);
+	m_overrideToBinarySpec = overrideToBinarySpecs.empty() ? nullptr : m_gitApi.CreatePathSpec(overrideToBinarySpecs);
 }
 
 BranchSet::~BranchSet()

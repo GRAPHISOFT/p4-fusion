@@ -95,15 +95,15 @@ private:
 
 public:
 	BranchSet(GitAPI& gitAPI,
-			  const std::vector<std::string>& clientViewMapping, 
-			  const std::string& baseDepotPath, 
-			  const std::vector<std::string>& branches, 
-			  const std::vector<StreamResult::MappingData>& mappings, 
-			  const std::vector<StreamResult::MappingData>& exclusions, 
-			  const bool includeBinaries, 
-			  const std::vector<std::regex>& excludes,
-			  const std::vector<std::string>& overrideToTextSpecs,
-			  const std::vector<std::string>& overrideToBinarySpecs);
+	    const std::vector<std::string>& clientViewMapping,
+	    const std::string& baseDepotPath,
+	    const std::vector<std::string>& branches,
+	    const std::vector<StreamResult::MappingData>& mappings,
+	    const std::vector<StreamResult::MappingData>& exclusions,
+	    const bool includeBinaries,
+	    const std::vector<std::regex>& excludes,
+	    const std::vector<std::string>& overrideToTextSpecs,
+	    const std::vector<std::string>& overrideToBinarySpecs);
 
 	~BranchSet();
 
