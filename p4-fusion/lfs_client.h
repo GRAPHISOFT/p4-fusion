@@ -28,6 +28,7 @@ public:
 	{
 		Uploaded,
 		AlreadyExists,
+		UnknownAPI,
 		Error
 	};
 
@@ -43,6 +44,7 @@ public:
 
 	std::vector<char> CreatePointerFileContents(const std::vector<char>& fileContents) const;
 
+	static std::string CalcOID(const std::vector<char>& fileContents);
 	UploadResult UploadFile(const std::vector<char>& fileContents) const;
 
 	bool IsLFSTracked(const std::string& filePath) const;
