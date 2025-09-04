@@ -10,9 +10,10 @@
 #include <fstream>
 #include <sstream>
 
-static std::unique_ptr<std::vector<std::string>> TokensFromFile(const std::string& filename)
+#include <wordexp.h>
+
+static std::unique_ptr<std::vector<std::string>> ArgsFromFile(const std::string& filename)
 {
-	std::unique_ptr<std::vector<std::string>> args(new std::vector<std::string>());
 	std::ifstream infile(filename);
 	if (!infile.is_open())
 	{
@@ -26,15 +27,34 @@ static std::unique_ptr<std::vector<std::string>> TokensFromFile(const std::strin
 		// Ignore empty lines and comments
 		if (!line.empty() && line[0] != '#')
 		{
-			ss.clear();
-			ss << line;
-			std::string arg;
-			while (ss >> arg) // split by whitespace - quoting and escaping currently not supported
-			{
-				args->push_back(arg);
-			}
+			ss << line << " ";
 		}
 	}
+	std::string fullcontent = ss.str();
+	wordexp_t expRes;
+	int resultCode = wordexp(fullcontent.c_str(), &expRes, WRDE_NOCMD);
+	if (resultCode)
+	{
+		std::string errorMessage;
+		switch (resultCode)
+		{
+			case WRDE_BADCHAR: errorMessage = "Illegal newline or |&;<>(){}"; break; 
+			case WRDE_BADVAL: errorMessage = "An undefined shell variable was referenced"; break;
+			case WRDE_CMDSUB: errorMessage = "Command substitution not allowed"; break;
+			case WRDE_NOSPACE: errorMessage = "Out of memory"; break;
+			case WRDE_SYNTAX: errorMessage = "Syntax error"; break;
+			default: break;
+		}
+		ERR("Error parsing config file: " << errorMessage);
+		return nullptr;
+	}
+
+	std::unique_ptr<std::vector<std::string>> args(new std::vector<std::string>());
+	for (int i = 0; i < expRes.we_wordc; i++)
+	{
+		args->emplace_back(expRes.we_wordv[i]);
+	}
+	wordfree(&expRes);
 	return args;
 }
 
@@ -53,12 +73,12 @@ void Arguments::Initialize(int argc, char** argv)
 			if (name == "--config" && !param.isSet)
 			{
 				param.isSet = true;
-				if (std::unique_ptr<std::vector<std::string>> tokens = TokensFromFile(value))
+				if (std::unique_ptr<std::vector<std::string>> args = ArgsFromFile(value))
 				{
-					for (int j = 0; j < tokens->size() - 1; j += 2)
+					for (int j = 0; j < args->size() - 1; j += 2)
 					{
-						const std::string name2 = (*tokens)[j];
-						const std::string value2 = (*tokens)[j + 1];
+						const std::string name2 = (*args)[j];
+						const std::string value2 = (*args)[j + 1];
 						const auto it2 = m_Parameters.find(name2);
 						if (it2 != m_Parameters.end())
 						{
