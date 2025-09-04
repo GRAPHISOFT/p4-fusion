@@ -86,6 +86,9 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsUsername", "", "Git LFS username for basic access authentication.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsPassword", "", "Git LFS password for basic access authentication.");
+	Arguments::GetSingleton()->OptionalParameter("--lfsAPI", "lfs", "Specify the type of the used LFS server API. The types currently supported are 'lfs' (the default) and 's3'.");
+	Arguments::GetSingleton()->OptionalParameter("--lfsS3Bucket", "", "Specify the name of the S3 bucket to use for LFS storage.");
+	Arguments::GetSingleton()->OptionalParameter("--lfsS3Repository", "", "Specify the name of the repository used to store LFS files in S3 bucket.");
 	Arguments::GetSingleton()->OptionalParameter("--overrideToTextSpecPath", "", "File path containing path specs for files to be handled as text, even when their P4 type is binary or something else. "
 	                                                                             "Normally this results in them being committed to the Git repo instead of ignored. "
 	                                                                             "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this only serves to silence a warning.");
@@ -140,18 +143,41 @@ int Main(int argc, char** argv)
 	const std::string lfsServerUrl = Arguments::GetSingleton()->GetLFSServerUrl();
 	const std::string lfsUsername = Arguments::GetSingleton()->GetLFSUsername();
 	const std::string lfsPassword = Arguments::GetSingleton()->GetLFSPassword();
+	const std::string lfsAPI = Arguments::GetSingleton()->GetLFSAPI();
+	const std::string lfsS3Bucket = Arguments::GetSingleton()->GetLFSS3Bucket();
+	const std::string lfsS3Repository = Arguments::GetSingleton()->GetLFSS3Repository();
 
 	GitAPI git(fsyncEnable);
 	std::unique_ptr<LFSClient> lfsClient;
-	if (!lfsSpecPath.empty() && !lfsServerUrl.empty())
+	if (!lfsSpecPath.empty() && !lfsServerUrl.empty() && !lfsAPI.empty())
 	{
 		std::unique_ptr<std::vector<std::string>> lfsPatterns = GetLinesFromFileWithoutComments(lfsSpecPath);
 		if (!lfsPatterns)
 		{
 			return 1;
 		}
-		lfsClient.reset(new LFSClient(git, lfsServerUrl, lfsUsername, lfsPassword, *lfsPatterns));
-		PRINT("Initialized LFS client with server URL: " << lfsServerUrl);
+
+		if (lfsAPI == "s3")
+		{
+			if (lfsS3Bucket.empty() || lfsS3Repository.empty())
+			{
+				ERR("When using 's3' for lfsAPI, both lfsS3Bucket and lfsS3Repository must be specified.");
+				return 1;
+			}
+
+			lfsClient.reset(new LFSClient(git, lfsS3Bucket, lfsS3Repository, lfsServerUrl, lfsUsername, lfsPassword, *lfsPatterns));
+		}
+		else if (lfsAPI == "lfs")
+		{
+			lfsClient.reset(new LFSClient(git, lfsServerUrl, lfsUsername, lfsPassword, *lfsPatterns));
+		}
+		else
+		{
+			ERR("Unsupported lfsAPI type '" << lfsAPI << "'. Supported types are 'lfs' and 's3'.");
+			return 1;
+		}
+
+		PRINT("Initialized LFS client with server URL: " << lfsServerUrl << " and API type: " << lfsAPI);
 
 		if (!includeBinaries)
 		{

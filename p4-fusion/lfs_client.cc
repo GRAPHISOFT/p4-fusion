@@ -383,15 +383,29 @@ bool PerformVerify(const std::string& username, const std::string& password, con
 	return (verifyResult.curl_result == CURLE_OK && verifyResult.response_code == 200);
 }
 
-}
+} // namespace
 
 LFSClient::LFSClient(GitAPI& gitAPI, const std::string& serverUrl, const std::string& username, const std::string& password, const std::vector<std::string>& lfsPatterns)
     : m_GitAPI(gitAPI)
+    , m_LFSAPI(API::LFS)
     , m_ServerUrl(serverUrl)
     , m_Username(username)
     , m_Password(password)
     , m_LFSPatterns(lfsPatterns)
     , m_LFSPathSpec(m_GitAPI.CreatePathSpec(lfsPatterns))
+{
+}
+
+LFSClient::LFSClient(GitAPI& gitAPI, const std::string& serverUrl, const std::string& bucket, const std::string& repository, const std::string& username, const std::string& password, const std::vector<std::string>& lfsPatterns)
+	: m_GitAPI(gitAPI)
+	, m_LFSAPI(API::S3)
+	, m_ServerUrl(serverUrl)
+	, m_Bucket(bucket)
+	, m_Repository(repository)
+	, m_Username(username)
+	, m_Password(password)
+	, m_LFSPatterns(lfsPatterns)
+	, m_LFSPathSpec(m_GitAPI.CreatePathSpec(lfsPatterns))
 {
 }
 

@@ -16,6 +16,13 @@
 // Thread-safe class for handling Git LFS (Large File Storage) operations
 class LFSClient
 {
+private:
+	enum class API
+	{
+		LFS,
+		S3
+	};
+
 public:
 	enum class UploadResult
 	{
@@ -24,7 +31,15 @@ public:
 		Error
 	};
 
+	/**
+	 * Constructor for the LFSClient using LFS server API.
+	 */
 	LFSClient(GitAPI& gitAPI, const std::string& serverUrl, const std::string& username, const std::string& password, const std::vector<std::string>& lfsPatterns);
+
+	/**
+	 * Constructor for the LFSClient using S3 API.
+	 */
+	LFSClient(GitAPI& gitAPI, const std::string& serverUrl, const std::string& bucket, const std::string& repository, const std::string& username, const std::string& password, const std::vector<std::string>& lfsPatterns);
 
 	std::vector<char> CreatePointerFileContents(const std::vector<char>& fileContents) const;
 
@@ -40,8 +55,11 @@ public:
 
 private:
 	GitAPI& m_GitAPI;
+	const API m_LFSAPI;
 
 	const std::string m_ServerUrl;
+	const std::string m_Bucket; // Only used for S3 API
+	const std::string m_Repository; // Only used for S3 API
 	const std::string m_Username;
 	const std::string m_Password;
 
