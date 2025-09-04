@@ -16,7 +16,6 @@
 #include <typeinfo>
 #include <csignal>
 #include <iterator>
-#include <fstream>
 
 #include "common.h"
 
@@ -36,27 +35,6 @@
 #define P4_FUSION_VERSION "v1.13.0"
 
 void SignalHandler(sig_atomic_t s);
-
-static std::unique_ptr<std::vector<std::string>> GetLinesFromFileWithoutComments(const std::string& filename)
-{
-	std::unique_ptr<std::vector<std::string>> lines(new std::vector<std::string>());
-	std::ifstream infile(filename);
-	if (!infile.is_open())
-	{
-		ERR("Failed to open file: " << filename);
-		return nullptr;
-	}
-	std::string line;
-	while (std::getline(infile, line))
-	{
-		// Ignore empty lines and comments
-		if (!line.empty() && line[0] != '#')
-		{
-			lines->push_back(line);
-		}
-	}
-	return lines;
-}
 
 int Main(int argc, char** argv)
 {
