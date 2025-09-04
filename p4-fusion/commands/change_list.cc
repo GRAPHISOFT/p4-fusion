@@ -137,7 +137,10 @@ void ChangeList::DownloadBatch(std::shared_ptr<std::vector<std::string>> printBa
 							case LFSClient::UploadResult::AlreadyExists:
 								SUCCESS("File " << filePath << " already exists in LFS, skipping upload");
 								break;
-							case LFSClient::UploadResult::Error:									
+							case LFSClient::UploadResult::UnknownAPI:
+								ERR("Unknown API error occurred while uploading file " << filePath << " to LFS");
+								std::abort();
+							case LFSClient::UploadResult::Error:
 								ERR("Failed to upload file " << filePath << " to LFS");
 								// Not nice, but we have no other means to signal any intermediate errors from here
 								std::abort();

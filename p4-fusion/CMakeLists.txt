@@ -44,6 +44,26 @@ endif(APPLE)
 message(${OPENSSL_SSL_LIBRARIES})
 message(${OPENSSL_CRYPTO_LIBRARIES})
 
+include(ExternalProject)
+
+ExternalProject_Add(aws-sdk
+    GIT_REPOSITORY    https://github.com/aws/aws-sdk-cpp.git
+    GIT_TAG           1.11.640
+    CMAKE_ARGS        -DBUILD_SHARED_LIBS=OFF
+                      -DAUTORUN_UNIT_TESTS=OFF
+                      -DBUILD_ONLY=s3
+                      -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/vendor/aws-sdk
+    PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/aws-sdk
+    BUILD_ALWAYS      TRUE
+    TEST_COMMAND      ""
+)
+
+add_dependencies(p4-fusion aws-sdk)
+
+target_include_directories(p4-fusion PUBLIC
+    ../vendor/aws-sdk/include
+)
+
 target_link_libraries(p4-fusion PUBLIC
     ${Frameworks}
     client
@@ -55,4 +75,5 @@ target_link_libraries(p4-fusion PUBLIC
     ${CURL_LIBRARIES}
     git2
     minitrace
+    ${CMAKE_SOURCE_DIR}/vendor/aws-sdk/lib/libaws-c-s3.a
 )
