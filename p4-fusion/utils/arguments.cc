@@ -50,7 +50,7 @@ static std::unique_ptr<std::vector<std::string>> ArgsFromFile(const std::string&
 	}
 
 	std::unique_ptr<std::vector<std::string>> args(new std::vector<std::string>());
-	for (int i = 0; i < expRes.we_wordc; i++)
+	for (size_t i = 0; i < expRes.we_wordc; i++)
 	{
 		args->emplace_back(expRes.we_wordv[i]);
 	}
@@ -75,7 +75,7 @@ void Arguments::Initialize(int argc, char** argv)
 				param.isSet = true;
 				if (std::unique_ptr<std::vector<std::string>> args = ArgsFromFile(value))
 				{
-					for (int j = 0; j < args->size() - 1; j += 2)
+					for (int j = 0; j + 1 < args->size(); j += 2)
 					{
 						const std::string name2 = (*args)[j];
 						const std::string value2 = (*args)[j + 1];
