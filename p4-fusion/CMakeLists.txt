@@ -8,6 +8,7 @@ endif()
 set(OPENSSL_USE_STATIC_LIBS true)
 find_package(OpenSSL)
 find_package(CURL REQUIRED)
+find_package(ZLIB REQUIRED)
 
 add_executable(p4-fusion ${Headers} ${Sources})
 
@@ -18,6 +19,7 @@ target_include_directories(p4-fusion PUBLIC
     ../vendor/rapidjson/include/
     ${OPENSSL_INCLUDE_DIR}
     ${CURL_INCLUDE_DIRS}
+    ${ZLIB_INCLUDE_DIRS}
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
@@ -64,6 +66,9 @@ target_include_directories(p4-fusion PUBLIC
     ../vendor/aws-sdk/include
 )
 
+set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/vendor/aws-sdk" ${CMAKE_PREFIX_PATH})
+find_package(AWSSDK REQUIRED COMPONENTS s3)
+
 target_link_libraries(p4-fusion PUBLIC
     ${Frameworks}
     client
@@ -73,7 +78,8 @@ target_link_libraries(p4-fusion PUBLIC
     ${OPENSSL_SSL_LIBRARIES}
     ${OPENSSL_CRYPTO_LIBRARIES}
     ${CURL_LIBRARIES}
+    ${ZLIB_LIBRARIES}
+    ${AWSSDK_LINK_LIBRARIES}
     git2
     minitrace
-    ${CMAKE_SOURCE_DIR}/vendor/aws-sdk/lib/libaws-c-s3.a
 )

@@ -1,4 +1,8 @@
 #include "s3comm.h"
+#include <aws/core/Aws.h>
+#include <aws/s3/S3Client.h>
+#include <aws/s3/model/PutObjectRequest.h>
+#include <aws/core/auth/AWSCredentials.h>
 
 S3Comm::S3Comm(const std::string& serverURL, const std::string& bucket, const std::string& repository, const std::string& username, const std::string& password)
 	: m_ServerURL(serverURL)
@@ -11,5 +15,30 @@ S3Comm::S3Comm(const std::string& serverURL, const std::string& bucket, const st
 
 LFSClient::UploadResult S3Comm::UploadFile(const std::vector<char>& fileContents) const
 {
-	return LFSClient::UploadResult::Error; // Placeholder implementation
+	std::string oid = LFSClient::CalcOID(fileContents);
+
+	Aws::SDKOptions options;
+	struct OptionsInitializer {
+		Aws::SDKOptions& options;
+		OptionsInitializer(Aws::SDKOptions& opts) : options(opts) { Aws::InitAPI(opts);}
+		~OptionsInitializer() { Aws::ShutdownAPI(options); }
+	} optionsInitializer (options);
+
+	Aws::Auth::AWSCredentials credentials(m_Username, m_Password);
+	Aws::S3::S3Client s3_client(credentials);
+
+	Aws::S3::Model::PutObjectRequest object_request;
+	object_request.SetBucket(m_Bucket);
+	object_request.SetKey(m_Repository + "/" + oid);
+
+	auto stream = Aws::MakeShared<Aws::StringStream>("", std::ios_base::in | std::ios_base::out | std::ios_base::binary);
+    stream->write(fileContents.data(), fileContents.size());
+    stream->seekg(0, std::ios::beg);
+
+    object_request.SetBody(stream);
+	
+	auto upload_result = s3_client.PutObject(object_request);
+	return upload_result.IsSuccess() ?
+		LFSClient::UploadResult::Uploaded :
+		LFSClient::UploadResult::Error;
 }
