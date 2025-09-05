@@ -165,7 +165,7 @@ int Main(int argc, char** argv)
 				return 1;
 			}
 
-			lfsClient.reset(new LFSClient(git, lfsS3Bucket, lfsS3Repository, lfsServerUrl, lfsUsername, lfsPassword, *lfsPatterns));
+			lfsClient.reset(new LFSClient(git, lfsServerUrl, lfsS3Bucket, lfsS3Repository, lfsUsername, lfsPassword, *lfsPatterns));
 		}
 		else if (lfsAPI == "lfs")
 		{
