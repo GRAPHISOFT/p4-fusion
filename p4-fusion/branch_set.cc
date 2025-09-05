@@ -273,10 +273,6 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 		// Put logic for Absolutely do not dare map these files here, here :)
 		if (relativeDepotPath.empty())
 		{
-			if (m_mappings.empty())
-			{
-				continue;
-			}
 			// Not under regular depot path, might be mapped in
 			// check and attenuate if it is.
 			bool isImport = false;
@@ -303,14 +299,14 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 				}
 			}
 
-			if (isP4Binary && !overrideToText && m_includeBinaries && lfsClient && !isLFSTracked)
-			{
-				WARN("File " << depotFile << " at revision " << fileData.GetRevision() << " has filetype binary, but is not LFS tracked. It will be committed directly to the git repo.");
-			}
-
 			if (!isImport)
 			{
 				continue;
+			}
+
+			if (isP4Binary && !overrideToText && m_includeBinaries && lfsClient && !isLFSTracked)
+			{
+				WARN("File " << depotFile << " at revision " << fileData.GetRevision() << " has filetype binary, but is not LFS tracked. It will be committed directly to the git repo.");
 			}
 		}
 
