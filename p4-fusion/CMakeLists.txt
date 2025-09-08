@@ -34,12 +34,14 @@ if (APPLE)
     find_library(CFNETWORK_LIB CFNetwork REQUIRED)
     find_library(COCOA_LIB Cocoa REQUIRED)
     find_library(SECURITY_LIB Security REQUIRED)
+    find_library(NETWORK_LIB Network REQUIRED)
     set(Frameworks
         ${Frameworks}
         ${CFNETWORK_LIB}
         ${COREFOUNDATION_LIB}
         ${COCOA_LIB}
         ${SECURITY_LIB}
+        ${NETWORK_LIB}
     )
 endif(APPLE)
 
@@ -66,8 +68,26 @@ target_include_directories(p4-fusion PUBLIC
     ../vendor/aws-sdk/include
 )
 
-set(CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/vendor/aws-sdk" ${CMAKE_PREFIX_PATH})
-find_package(AWSSDK REQUIRED COMPONENTS s3)
+target_link_directories(p4-fusion PUBLIC
+    ../vendor/aws-sdk/lib
+)
+
+set(AWSSDK_LINK_LIBRARIES
+    libaws-c-auth.a
+    libaws-c-cal.a
+    libaws-c-common.a
+    libaws-c-compression.a
+    libaws-c-event-stream.a
+    libaws-c-http.a
+    libaws-c-io.a
+    libaws-c-mqtt.a
+    libaws-c-s3.a
+    libaws-c-sdkutils.a
+    libaws-checksums.a
+    libaws-cpp-sdk-core.a
+    libaws-cpp-sdk-s3.a
+    libaws-crt-cpp.a
+)
 
 target_link_libraries(p4-fusion PUBLIC
     ${Frameworks}
