@@ -12,6 +12,10 @@
 
 #include <wordexp.h>
 
+/**
+ * Opens the specified file, removes lines beginning with # and parses the remaining contents with wordexp
+ * @returns the vector of words as parsed by wordexp
+ */
 static std::unique_ptr<std::vector<std::string>> ArgsFromFile(const std::string& filename)
 {
 	std::ifstream infile(filename);
@@ -58,6 +62,31 @@ static std::unique_ptr<std::vector<std::string>> ArgsFromFile(const std::string&
 	return args;
 }
 
+/**
+ * Parses the specified config file and adds the arguments contained within to the parameter map as if they came from the command line
+ */
+void Arguments::AddArgumentsFromFile(const std::string& filename)
+{
+	std::unique_ptr<std::vector<std::string>> args = ArgsFromFile(filename);
+	if (!args)
+	{
+		return;
+	}
+
+	for (int j = 0; j + 1 < args->size(); j += 2)
+	{
+		const std::string name2 = (*args)[j];
+		const std::string value2 = (*args)[j + 1];
+		const auto it2 = m_Parameters.find(name2);
+		if (it2 != m_Parameters.end())
+		{
+			ParameterData& param2 = it2->second;
+			param2.valueList.push_back(value2);
+			param2.isSet = true;
+		}
+	}
+}
+
 void Arguments::Initialize(int argc, char** argv)
 {
 	m_Parameters.emplace("--config", ParameterData { false, false, {}, "Path to a file that can contain additional command line arguments." });
@@ -70,24 +99,9 @@ void Arguments::Initialize(int argc, char** argv)
 		if (it != m_Parameters.end())
 		{
 			ParameterData& param = it->second;
-			if (name == "--config" && !param.isSet)
+			if (name == "--config")
 			{
-				param.isSet = true;
-				if (std::unique_ptr<std::vector<std::string>> args = ArgsFromFile(value))
-				{
-					for (int j = 0; j + 1 < args->size(); j += 2)
-					{
-						const std::string name2 = (*args)[j];
-						const std::string value2 = (*args)[j + 1];
-						const auto it2 = m_Parameters.find(name2);
-						if (it2 != m_Parameters.end())
-						{
-							ParameterData& param2 = it2->second;
-							param2.valueList.push_back(value2);
-							param2.isSet = true;
-						}
-					}
-				}
+				AddArgumentsFromFile(value);
 			}
 			else
 			{
