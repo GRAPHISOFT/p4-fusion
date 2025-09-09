@@ -1,4 +1,5 @@
 #include "lfscomm.h"
+#include "lfs/lfs_client.h"
 #include <curl/curl.h>
 #include <memory>
 #include <sstream>
@@ -306,13 +307,13 @@ BatchResponse PerformBatchUploadRequest(const std::string& serverUrl, const std:
 	return result;
 }
 
-LFSClient::UploadResult PerformUpload(const std::string& username, const std::string& password, const std::string& uploadUrl, const std::vector<char>& fileContents)
+Communicator::UploadResult PerformUpload(const std::string& username, const std::string& password, const std::string& uploadUrl, const std::vector<char>& fileContents)
 {
 	// Initialize curl
 	CURLHandle curl;
 	if (!curl)
 	{
-		return LFSClient::UploadResult::Error;
+		return Communicator::UploadResult::Error;
 	}
 
 	// Set up headers for file upload
@@ -326,15 +327,15 @@ LFSClient::UploadResult PerformUpload(const std::string& username, const std::st
 
 	if (uploadResult.curl_result != CURLE_OK)
 	{
-		return LFSClient::UploadResult::Error;
+		return Communicator::UploadResult::Error;
 	}
 
 	if (uploadResult.response_code >= 200 && uploadResult.response_code < 300)
 	{
-		return LFSClient::UploadResult::Uploaded;
+		return Communicator::UploadResult::Uploaded;
 	}
 
-	return LFSClient::UploadResult::Error;
+	return Communicator::UploadResult::Error;
 }
 
 std::string CreateVerifyPayload(const std::string& oid, size_t fileSize)
@@ -384,23 +385,23 @@ LFSComm::LFSComm(const std::string& serverURL, const std::string& username, cons
 {
 }
 
-LFSClient::UploadResult LFSComm::UploadFile(const std::vector<char>& fileContents) const
+Communicator::UploadResult LFSComm::UploadFile(const std::vector<char>& fileContents) const
 {
 	std::string oid = LFSClient::CalcOID(fileContents);
 
 	auto batchResponse = PerformBatchUploadRequest(m_ServerURL, m_Username, m_Password, oid, fileContents.size());
 	if (!batchResponse.success)
 	{
-		return LFSClient::UploadResult::Error;
+		return UploadResult::Error;
 	}
 
 	if (!batchResponse.needsUpload)
 	{
-		return LFSClient::UploadResult::AlreadyExists;
+		return UploadResult::AlreadyExists;
 	}
 
 	auto uploadResult = PerformUpload(m_Username, m_Password, batchResponse.uploadUrl, fileContents);
-	if (uploadResult != LFSClient::UploadResult::Uploaded)
+	if (uploadResult != UploadResult::Uploaded)
 	{
 		return uploadResult;
 	}
@@ -409,9 +410,9 @@ LFSClient::UploadResult LFSComm::UploadFile(const std::vector<char>& fileContent
 	{
 		if (!PerformVerify(m_Username, m_Password, batchResponse.verifyUrl, oid, fileContents.size()))
 		{
-			return LFSClient::UploadResult::Error;
+			return UploadResult::Error;
 		}
 	}
 
-	return LFSClient::UploadResult::Uploaded;
+	return UploadResult::Uploaded;
 }

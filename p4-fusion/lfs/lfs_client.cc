@@ -6,29 +6,14 @@
  */
 #include "lfs_client.h"
 #include "openssl/sha.h"
-#include "lfs/communication/communicator.h"
+#include "lfs/communication/lfscomm.h"
+#include "lfs/communication/s3comm.h"
 
-LFSClient::LFSClient(GitAPI& gitAPI, const std::string& serverUrl, const std::string& username, const std::string& password, const std::vector<std::string>& lfsPatterns)
+LFSClient::LFSClient(GitAPI& gitAPI, std::unique_ptr<Communicator> communicator, const std::vector<std::string>& lfsPatterns)
     : m_GitAPI(gitAPI)
-    , m_LFSAPI(API::LFS)
-    , m_ServerUrl(serverUrl)
-    , m_Username(username)
-    , m_Password(password)
+    , m_Communicator(std::move(communicator))
     , m_LFSPatterns(lfsPatterns)
     , m_LFSPathSpec(m_GitAPI.CreatePathSpec(lfsPatterns))
-{
-}
-
-LFSClient::LFSClient(GitAPI& gitAPI, const std::string& serverUrl, const std::string& bucket, const std::string& repository, const std::string& username, const std::string& password, const std::vector<std::string>& lfsPatterns)
-	: m_GitAPI(gitAPI)
-	, m_LFSAPI(API::S3)
-	, m_ServerUrl(serverUrl)
-	, m_Bucket(bucket)
-	, m_Repository(repository)
-	, m_Username(username)
-	, m_Password(password)
-	, m_LFSPatterns(lfsPatterns)
-	, m_LFSPathSpec(m_GitAPI.CreatePathSpec(lfsPatterns))
 {
 }
 
@@ -67,27 +52,14 @@ std::string LFSClient::CalcOID(const std::vector<char>& fileContents)
 	return oid;
 }
 
-LFSClient::UploadResult LFSClient::UploadFile(const std::vector<char>& fileContents) const
+Communicator::UploadResult LFSClient::UploadFile(const std::vector<char>& fileContents) const
 {
-	std::unique_ptr<Communicator> comm;
-	switch (m_LFSAPI)
+	if (!m_Communicator)
 	{
-	case API::LFS:
-		comm = Communicator::CreateLFS(m_ServerUrl, m_Username, m_Password);
-		break;
-	case API::S3:
-		comm = Communicator::CreateS3(m_ServerUrl, m_Bucket, m_Repository, m_Username, m_Password);
-		break;
-	default:
-		break;
+		return Communicator::UploadResult::Error;
 	}
 
-	if (!comm)
-	{
-		return UploadResult::UnknownAPI;
-	}
-
-	return comm->UploadFile(fileContents);
+	return m_Communicator->UploadFile(fileContents);
 }
 
 bool LFSClient::IsLFSTracked(const std::string& filePath) const

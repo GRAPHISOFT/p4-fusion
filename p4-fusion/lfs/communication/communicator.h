@@ -6,7 +6,8 @@
  */
 #pragma once
 
-#include "lfs/lfs_client.h"
+#include <memory>
+#include <string>
 
 class Communicator
 {
@@ -14,10 +15,14 @@ protected:
 	Communicator() = default;
 
 public:
-	static std::unique_ptr<Communicator> CreateLFS(const std::string& serverURL, const std::string& username, const std::string& password);
-	static std::unique_ptr<Communicator> CreateS3(const std::string& serverURL, const std::string& bucket, const std::string& repository, const std::string& username, const std::string& password);
-	
 	virtual ~Communicator() = default;
 
-	virtual LFSClient::UploadResult UploadFile(const std::vector<char>& fileContents) const = 0;
+	enum class UploadResult
+	{
+		Uploaded,
+		AlreadyExists,
+		Error
+	};
+
+	virtual UploadResult UploadFile(const std::vector<char>& fileContents) const = 0;
 };

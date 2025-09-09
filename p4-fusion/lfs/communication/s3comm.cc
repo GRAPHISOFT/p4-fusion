@@ -1,4 +1,5 @@
 #include "s3comm.h"
+#include "lfs/lfs_client.h"
 #include <aws/core/Aws.h>
 #include <aws/s3/S3Client.h>
 #include <aws/s3/model/PutObjectRequest.h>
@@ -14,7 +15,7 @@ S3Comm::S3Comm(const std::string& serverURL, const std::string& bucket, const st
 {
 }
 
-LFSClient::UploadResult S3Comm::UploadFile(const std::vector<char>& fileContents) const
+Communicator::UploadResult S3Comm::UploadFile(const std::vector<char>& fileContents) const
 {
 	std::string oid = LFSClient::CalcOID(fileContents);
 
@@ -51,6 +52,6 @@ LFSClient::UploadResult S3Comm::UploadFile(const std::vector<char>& fileContents
 
 	auto upload_result = s3_client.PutObject(object_request);
 	return upload_result.IsSuccess() ?
-		LFSClient::UploadResult::Uploaded :
-		LFSClient::UploadResult::Error;
+		UploadResult::Uploaded :
+		UploadResult::Error;
 }

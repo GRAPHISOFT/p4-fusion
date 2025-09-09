@@ -29,6 +29,8 @@
 #include "git_api.h"
 #include "branch_set.h"
 #include "lfs/lfs_client.h"
+#include "lfs/communication/lfscomm.h"
+#include "lfs/communication/s3comm.h"
 
 #include "p4/p4libs.h"
 #include "minitrace.h"
@@ -165,11 +167,13 @@ int Main(int argc, char** argv)
 				return 1;
 			}
 
-			lfsClient.reset(new LFSClient(git, lfsServerUrl, lfsS3Bucket, lfsS3Repository, lfsUsername, lfsPassword, *lfsPatterns));
+			std::unique_ptr<Communicator> communicator(new S3Comm(lfsServerUrl, lfsS3Bucket, lfsS3Repository, lfsUsername, lfsPassword));
+			lfsClient.reset(new LFSClient(git, std::move(communicator), *lfsPatterns));
 		}
 		else if (lfsAPI == "lfs")
 		{
-			lfsClient.reset(new LFSClient(git, lfsServerUrl, lfsUsername, lfsPassword, *lfsPatterns));
+			std::unique_ptr<Communicator> communicator(new LFSComm(lfsServerUrl, lfsUsername, lfsPassword));
+			lfsClient.reset(new LFSClient(git, std::move(communicator), *lfsPatterns));
 		}
 		else
 		{

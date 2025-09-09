@@ -14,7 +14,7 @@ public:
 	S3Comm(const std::string& serverURL, const std::string& bucket, const std::string& repository, const std::string& username, const std::string& password);
 	virtual ~S3Comm() = default;
 
-	virtual LFSClient::UploadResult UploadFile(const std::vector<char>& fileContents) const override;
+	UploadResult UploadFile(const std::vector<char>& fileContents) const override;
 
 private:
 	const std::string m_ServerURL;
