@@ -66,10 +66,25 @@ bool Arguments::IsValid() const
 		}
 	}
 
-	const bool hasAnyLFSParam = !GetLFSSpecPath().empty() || !GetLFSServerUrl().empty() || !GetLFSUsername().empty() || !GetLFSPassword().empty();
-	const bool hasAllLFSParams = !GetLFSSpecPath().empty() && !GetLFSServerUrl().empty();
+	const bool hasAnyLFSParam = !GetLFSSpecPath().empty() || !GetLFSServerUrl().empty() ||
+		!GetLFSUsername().empty() || !GetLFSPassword().empty() || !GetLFSAPI().empty() ||
+		!GetLFSS3Bucket().empty() || !GetLFSS3Repository().empty();
+	const bool hasAllLFSParams = !GetLFSSpecPath().empty() && !GetLFSServerUrl().empty() && !GetLFSAPI().empty();
 	if (hasAnyLFSParam && !hasAllLFSParams)
 		return false;
+	if (hasAnyLFSParam) {
+		const std::string& lfsAPI = GetLFSAPI();
+		if (lfsAPI != "lfs" && lfsAPI != "s3")
+		{
+			ERR("Unsupported lfsAPI type '" << lfsAPI << "'. Supported types are 'lfs' and 's3'.");
+			return false;
+		}
+		if (lfsAPI == "s3" && (GetLFSS3Bucket().empty() || GetLFSS3Repository().empty()))
+		{
+			ERR("When using 's3' for lfsAPI, both lfsS3Bucket and lfsS3Repository must be specified.");
+			return false;
+		}
+	}
 
 	return true;
 }

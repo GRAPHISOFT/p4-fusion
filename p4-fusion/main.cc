@@ -159,27 +159,16 @@ int Main(int argc, char** argv)
 			return 1;
 		}
 
+		std::unique_ptr<Communicator> communicator;
 		if (lfsAPI == "s3")
 		{
-			if (lfsS3Bucket.empty() || lfsS3Repository.empty())
-			{
-				ERR("When using 's3' for lfsAPI, both lfsS3Bucket and lfsS3Repository must be specified.");
-				return 1;
-			}
-
-			std::unique_ptr<Communicator> communicator(new S3Comm(lfsServerUrl, lfsS3Bucket, lfsS3Repository, lfsUsername, lfsPassword));
-			lfsClient.reset(new LFSClient(git, std::move(communicator), *lfsPatterns));
+			communicator.reset(new S3Comm(lfsServerUrl, lfsS3Bucket, lfsS3Repository, lfsUsername, lfsPassword));
 		}
 		else if (lfsAPI == "lfs")
 		{
-			std::unique_ptr<Communicator> communicator(new LFSComm(lfsServerUrl, lfsUsername, lfsPassword));
-			lfsClient.reset(new LFSClient(git, std::move(communicator), *lfsPatterns));
+			communicator.reset(new LFSComm(lfsServerUrl, lfsUsername, lfsPassword));
 		}
-		else
-		{
-			ERR("Unsupported lfsAPI type '" << lfsAPI << "'. Supported types are 'lfs' and 's3'.");
-			return 1;
-		}
+		lfsClient.reset(new LFSClient(git, std::move(communicator), *lfsPatterns));
 
 		PRINT("Initialized LFS client with server URL: " << lfsServerUrl << " and API type: " << lfsAPI);
 

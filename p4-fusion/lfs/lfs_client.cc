@@ -25,10 +25,10 @@ std::vector<char> LFSClient::CreatePointerFileContents(const std::vector<char>& 
 		return {};
 	}
 
-	std::string hexHash = CalcOID(fileContents);
+	const std::string hexHash = CalcOID(fileContents);
 
-	std::string pointerContent = "version https://git-lfs.github.com/spec/v1\n"
-	                             "oid sha256:"
+	const std::string pointerContent = "version https://git-lfs.github.com/spec/v1\n"
+	                                   "oid sha256:"
 	    + hexHash + "\n"
 	                "size "
 	    + std::to_string(fileContents.size()) + "\n";
