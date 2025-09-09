@@ -6,7 +6,7 @@
  */
 #include "lfs_client.h"
 #include "openssl/sha.h"
-#include "lfscommunication/communicator.h"
+#include "lfs/communication/communicator.h"
 
 LFSClient::LFSClient(GitAPI& gitAPI, const std::string& serverUrl, const std::string& username, const std::string& password, const std::vector<std::string>& lfsPatterns)
     : m_GitAPI(gitAPI)

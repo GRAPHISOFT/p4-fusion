@@ -28,7 +28,7 @@
 #include "p4_api.h"
 #include "git_api.h"
 #include "branch_set.h"
-#include "lfs_client.h"
+#include "lfs/lfs_client.h"
 
 #include "p4/p4libs.h"
 #include "minitrace.h"
