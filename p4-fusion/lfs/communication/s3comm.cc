@@ -18,6 +18,7 @@ public:
 	Aws::SDKOptions awsOptions;
 };
 
+std::once_flag awsInitFlag;
 std::unique_ptr<AWSInitializer> awsInitializer;
 
 } // namespace
@@ -29,9 +30,9 @@ S3Comm::S3Comm(const std::string& serverURL, const std::string& bucket, const st
 	, m_Username(username)
 	, m_Password(password)
 {
-	if (!awsInitializer) {
+	std::call_once(awsInitFlag, []() {
 		awsInitializer.reset(new AWSInitializer());
-	}
+	});
 }
 
 Communicator::UploadResult S3Comm::UploadFile(const std::vector<char>& fileContents) const
