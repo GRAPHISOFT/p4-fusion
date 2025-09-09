@@ -103,3 +103,9 @@ target_link_libraries(p4-fusion PUBLIC
     git2
     minitrace
 )
+
+add_custom_target(deepclean
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${CMAKE_SOURCE_DIR}/build
+    COMMAND ${CMAKE_COMMAND} -E rm -rf ${CMAKE_SOURCE_DIR}/vendor/aws-sdk
+    COMMENT "Removing AWS SDK on clean"
+)
