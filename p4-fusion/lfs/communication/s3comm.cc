@@ -8,21 +8,6 @@
 #include <aws/s3/S3ClientConfiguration.h>
 #include <aws/core/utils/stream/PreallocatedStreamBuf.h>
 
-namespace {
-
-class AWSInitializer {
-public:
-	AWSInitializer() { Aws::InitAPI(awsOptions); }
-	~AWSInitializer() { Aws::ShutdownAPI(awsOptions); }
-
-	Aws::SDKOptions awsOptions;
-};
-
-std::once_flag awsInitFlag;
-std::unique_ptr<AWSInitializer> awsInitializer;
-
-} // namespace
-
 S3Comm::S3Comm(const std::string& serverURL, const std::string& bucket, const std::string& repository, const std::string& username, const std::string& password)
 	: m_ServerURL(serverURL)
 	, m_Bucket(bucket)
@@ -30,9 +15,6 @@ S3Comm::S3Comm(const std::string& serverURL, const std::string& bucket, const st
 	, m_Username(username)
 	, m_Password(password)
 {
-	std::call_once(awsInitFlag, []() {
-		awsInitializer.reset(new AWSInitializer());
-	});
 }
 
 Communicator::UploadResult S3Comm::UploadFile(const std::vector<char>& fileContents) const

@@ -17,6 +17,7 @@
 #include <csignal>
 #include <iterator>
 #include <fstream>
+#include <aws/core/Aws.h>
 
 #include "common.h"
 
@@ -636,6 +637,9 @@ int main(int argc, char** argv)
 {
 	int exitCode = 0;
 
+	Aws::SDKOptions awsOptions;
+	Aws::InitAPI(awsOptions);
+
 	try
 	{
 		exitCode = Main(argc, argv);
@@ -646,5 +650,6 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
+	Aws::ShutdownAPI(awsOptions);
 	return exitCode;
 }
