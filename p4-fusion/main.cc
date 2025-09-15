@@ -40,27 +40,6 @@
 
 void SignalHandler(sig_atomic_t s);
 
-static std::unique_ptr<std::vector<std::string>> GetLinesFromFileWithoutComments(const std::string& filename)
-{
-	std::unique_ptr<std::vector<std::string>> lines(new std::vector<std::string>());
-	std::ifstream infile(filename);
-	if (!infile.is_open())
-	{
-		ERR("Failed to open file: " << filename);
-		return nullptr;
-	}
-	std::string line;
-	while (std::getline(infile, line))
-	{
-		// Ignore empty lines and comments
-		if (!line.empty() && line[0] != '#')
-		{
-			lines->push_back(line);
-		}
-	}
-	return lines;
-}
-
 int Main(int argc, char** argv)
 {
 	Timer programTimer;
@@ -85,19 +64,21 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->OptionalParameterList("--exclude", "A regex used to exclude files from the conversion. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--excludeLogPath", "", "Path to a file where the excluded files will be logged.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
-	Arguments::GetSingleton()->OptionalParameter("--lfsSpecPath", "", "File path containing path specs for files to be handled by Git LFS.");
+	Arguments::GetSingleton()->OptionalParameterList("--lfsSpec", "Path spec for files to be handled by Git LFS. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsUsername", "", "Git LFS username for basic access authentication.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsPassword", "", "Git LFS password for basic access authentication.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsAPI", "lfs", "Specify the type of the used LFS server API. The types currently supported are 'lfs' (the default) and 's3'.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsS3Bucket", "", "Specify the name of the S3 bucket to use for LFS storage.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsS3Repository", "", "Specify the name of the repository used to store LFS files in S3 bucket.");
-	Arguments::GetSingleton()->OptionalParameter("--overrideToTextSpecPath", "", "File path containing path specs for files to be handled as text, even when their P4 type is binary or something else. "
-	                                                                             "Normally this results in them being committed to the Git repo instead of ignored. "
-	                                                                             "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this only serves to silence a warning.");
-	Arguments::GetSingleton()->OptionalParameter("--overrideToBinarySpecPath", "", "File path containing path specs for files to be handled as binary, even when their P4 type is something else. "
-	                                                                               "Normally this results in them being ignored instead of committed. "
-	                                                                               "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing.");
+	Arguments::GetSingleton()->OptionalParameterList("--overrideToText", "Path spec for files to be handled as text, even when their P4 type is binary or something else. "
+	                                                                     "Normally this results in them being committed to the Git repo instead of ignored. "
+	                                                                     "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this only serves to silence a warning."
+	                                                                     "Can be specified more than once.");
+	Arguments::GetSingleton()->OptionalParameterList("--overrideToBinary", "Path spec for files to be handled as binary, even when their P4 type is something else. "
+	                                                                       "Normally this results in them being ignored instead of committed. "
+	                                                                       "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing."
+	                                                                       "Can be specified more than once.");
 
 	PRINT("p4-fusion " P4_FUSION_VERSION);
 
@@ -142,7 +123,6 @@ int Main(int argc, char** argv)
 	}
 	const bool streamMappings = Arguments::GetSingleton()->GetStreamMappings() != "false";
 
-	const std::string lfsSpecPath = Arguments::GetSingleton()->GetLFSSpecPath();
 	const std::string lfsServerUrl = Arguments::GetSingleton()->GetLFSServerUrl();
 	const std::string lfsUsername = Arguments::GetSingleton()->GetLFSUsername();
 	const std::string lfsPassword = Arguments::GetSingleton()->GetLFSPassword();
@@ -150,17 +130,13 @@ int Main(int argc, char** argv)
 	const std::string lfsS3Bucket = Arguments::GetSingleton()->GetLFSS3Bucket();
 	const std::string lfsS3Repository = Arguments::GetSingleton()->GetLFSS3Repository();
 
+	std::vector<std::string> lfsPatterns = Arguments::GetSingleton()->GetLFSSpecs();
+
 	GitAPI git(fsyncEnable);
 	std::unique_ptr<LFSClient> lfsClient;
-	if (!lfsSpecPath.empty() && !lfsServerUrl.empty() && !lfsAPI.empty())
+	if (!lfsPatterns.empty() && !lfsServerUrl.empty() && !lfsAPI.empty())
 	{
-		std::unique_ptr<std::vector<std::string>> lfsPatterns = GetLinesFromFileWithoutComments(lfsSpecPath);
-		if (!lfsPatterns)
-		{
-			return 1;
-		}
-
-		std::unique_ptr<Communicator> communicator;
+ 		std::unique_ptr<Communicator> communicator;
 		if (lfsAPI == "s3")
 		{
 			communicator.reset(new S3Comm(lfsServerUrl, lfsS3Bucket, lfsS3Repository, lfsUsername, lfsPassword));
@@ -169,7 +145,7 @@ int Main(int argc, char** argv)
 		{
 			communicator.reset(new LFSComm(lfsServerUrl, lfsUsername, lfsPassword));
 		}
-		lfsClient.reset(new LFSClient(git, std::move(communicator), *lfsPatterns));
+		lfsClient.reset(new LFSClient(git, std::move(communicator), lfsPatterns));
 
 		PRINT("Initialized LFS client with server URL: " << lfsServerUrl << " and API type: " << lfsAPI);
 
@@ -179,27 +155,8 @@ int Main(int argc, char** argv)
 		}
 	}
 
-	const std::string overrideToTextSpecPath = Arguments::GetSingleton()->GetOverrideToTextSpecPath();
-	const std::string overrideToBinarySpecPath = Arguments::GetSingleton()->GetOverrideToBinarySpecPath();
-
-	std::unique_ptr<std::vector<std::string>> overrideToTextSpecs(new std::vector<std::string>());
-	std::unique_ptr<std::vector<std::string>> overrideToBinarySpecs(new std::vector<std::string>());
-	if (!overrideToTextSpecPath.empty())
-	{
-		overrideToTextSpecs = GetLinesFromFileWithoutComments(overrideToTextSpecPath);
-		if (!overrideToTextSpecs)
-		{
-			return 1;
-		}
-	}
-	if (!overrideToBinarySpecPath.empty())
-	{
-		overrideToBinarySpecs = GetLinesFromFileWithoutComments(overrideToBinarySpecPath);
-		if (!overrideToBinarySpecs)
-		{
-			return 1;
-		}
-	}
+	std::vector<std::string> overrideToTextSpecs = Arguments::GetSingleton()->GetOverrideToTextSpecs();
+	std::vector<std::string> overrideToBinarySpecs = Arguments::GetSingleton()->GetOverrideToBinarySpecs();
 
 	PRINT("Running p4-fusion from: " << argv[0]);
 
@@ -344,7 +301,7 @@ int Main(int argc, char** argv)
 		}
 	}
 
-	BranchSet branchSet(git, P4API::ClientSpec.mapping, depotPath, branchNames, mappings, exclusions, includeBinaries, excludes, *overrideToTextSpecs, *overrideToBinarySpecs);
+	BranchSet branchSet(git, P4API::ClientSpec.mapping, depotPath, branchNames, mappings, exclusions, includeBinaries, excludes, overrideToTextSpecs, overrideToBinarySpecs);
 
 	bool profiling = false;
 #if MTR_ENABLED

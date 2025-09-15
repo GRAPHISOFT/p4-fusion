@@ -26,6 +26,7 @@ class Arguments
 
 	std::string GetParameter(const std::string& argName) const;
 	std::vector<std::string> GetParameterList(const std::string& argName) const;
+	void AddArgumentsFromFile (const std::string& filename);
 
 public:
 	static Arguments* GetSingleton();
@@ -60,13 +61,13 @@ public:
 	std::vector<std::string> GetBranches() const { return GetParameterList("--branch"); };
 	std::vector<std::string> GetExcludes() const { return GetParameterList("--exclude"); };
 	std::string GetExcludeLogPath() const { return GetParameter("--excludeLogPath"); };
-	std::string GetLFSSpecPath() const { return GetParameter("--lfsSpecPath"); }
+	std::vector<std::string> GetLFSSpecs() const { return GetParameterList("--lfsSpec"); }
 	std::string GetLFSServerUrl() const { return GetParameter("--lfsServerUrl"); }
 	std::string GetLFSUsername() const { return GetParameter("--lfsUsername"); }
 	std::string GetLFSPassword() const { return GetParameter("--lfsPassword"); }
 	std::string GetLFSAPI() const { return GetParameter("--lfsAPI"); }
 	std::string GetLFSS3Bucket() const { return GetParameter("--lfsS3Bucket"); }
 	std::string GetLFSS3Repository() const { return GetParameter("--lfsS3Repository"); }
-	std::string GetOverrideToTextSpecPath() const { return GetParameter("--overrideToTextSpecPath"); }
-	std::string GetOverrideToBinarySpecPath() const { return GetParameter("--overrideToBinarySpecPath"); }
+	std::vector<std::string> GetOverrideToTextSpecs() const { return GetParameterList("--overrideToText"); }
+	std::vector<std::string> GetOverrideToBinarySpecs() const { return GetParameterList("--overrideToBinary"); }
 };
