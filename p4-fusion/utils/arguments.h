@@ -27,6 +27,7 @@ class Arguments
 	std::string GetParameter(const std::string& argName) const;
 	std::vector<std::string> GetParameterList(const std::string& argName) const;
 	void AddArgumentsFromFile (const std::string& filename);
+	bool ValidateS3Bucket() const;
 
 public:
 	static Arguments* GetSingleton();
