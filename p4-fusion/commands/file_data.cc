@@ -93,6 +93,7 @@ void FileData::SetRelativePathForGit(std::string relativePath)
 	ReplaceAll(relativePath, "%40", "@");
 	ReplaceAll(relativePath, "%23", "#");
 	ReplaceAll(relativePath, "%2A", "*");
+	// Replace %25 last to avoid interfering with other escape sequences
 	ReplaceAll(relativePath, "%25", "%");
 	m_data->relativePath = relativePath;
 }
