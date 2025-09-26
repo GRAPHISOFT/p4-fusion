@@ -136,7 +136,7 @@ int Main(int argc, char** argv)
 	std::unique_ptr<LFSClient> lfsClient;
 	if (!lfsPatterns.empty() && !lfsServerUrl.empty() && !lfsAPI.empty())
 	{
- 		std::unique_ptr<Communicator> communicator;
+		std::unique_ptr<Communicator> communicator;
 		if (lfsAPI == "s3")
 		{
 			communicator.reset(new S3Comm(lfsServerUrl, lfsS3Bucket, lfsS3Repository, lfsUsername, lfsPassword));
@@ -470,11 +470,11 @@ int Main(int argc, char** argv)
 			{
 				if (file.IsDeleted())
 				{
-					git.RemoveFileFromIndex(file.GetRelativePath());
+					git.RemoveFileFromIndex(file.GetRelativePathForGit());
 				}
 				else
 				{
-					git.AddFileToIndex(file.GetRelativePath(), file.GetContents(), file.IsExecutable());
+					git.AddFileToIndex(file.GetRelativePathForGit(), file.GetContents(), file.IsExecutable());
 				}
 
 				// No use for keeping the contents in memory once it has been added
