@@ -14,7 +14,7 @@ static void ReplaceAll(std::string& str, const std::string& find, const std::str
 	while ((pos = str.find(find, startPos)) != std::string::npos)
 	{
 		str.replace(pos, find.length(), replace);
-		startPos = pos + 1;
+		startPos = pos + replace.length();
 	}
 }
 
