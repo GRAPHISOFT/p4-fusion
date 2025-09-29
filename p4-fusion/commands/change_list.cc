@@ -11,6 +11,7 @@
 #include "filelog_result.h"
 #include "print_result.h"
 #include "utils/std_helpers.h"
+#include "utils/p4_depot_path.h"
 
 #include "thread_pool.h"
 #include "lfs/communication/communicator.h"
@@ -120,7 +121,7 @@ void ChangeList::DownloadBatch(std::shared_ptr<std::vector<std::string>> printBa
 				const PrintResult& printData = p4->PrintFiles(*printBatchFiles);
 			    for (int i = 0; i < printBatchFiles->size(); i++)
 			    {
-					auto& filePath = printBatchFileData->at(i)->GetRelativePathForGit();
+					std::string filePath = P4Unescape(printBatchFileData->at(i)->GetRelativeDepotPath());
 					// If in LFS mode, we determine whether a file is LFS-tracked, and if so, we do produce a pointer file and upload the file contents.
 					if (! lfsClient ||  !lfsClient->IsLFSTracked(filePath))
 					{

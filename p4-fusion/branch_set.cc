@@ -338,7 +338,7 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 
 			// It's a valid destination to a branch.
 			// Make sure the relative path is set.
-			fileData.SetRelativePathForGit(branchPath[1]);
+			fileData.SetRelativeDepotPath(branchPath[1]);
 
 			bool needsHandling = true;
 			if (fileData.IsIntegrated())
@@ -369,7 +369,7 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 		{
 			// It's a non-branching setup.
 			// Make sure the relative path is set.
-			fileData.SetRelativePathForGit(relativeDepotPath);
+			fileData.SetRelativeDepotPath(relativeDepotPath);
 			branchMap.addTarget(EMPTY_STRING, fileData);
 		}
 	}

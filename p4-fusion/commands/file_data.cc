@@ -6,18 +6,6 @@
  */
 #include "file_data.h"
 
-static void ReplaceAll(std::string& str, const std::string& find, const std::string& replace)
-{
-	std::string::size_type pos;
-	std::string::size_type startPos = 0;
-
-	while ((pos = str.find(find, startPos)) != std::string::npos)
-	{
-		str.replace(pos, find.length(), replace);
-		startPos = pos + replace.length();
-	}
-}
-
 FileDataStore::FileDataStore()
     : actionCategory(FileAction::FileAdd)
     , isContentsSet(false)
@@ -88,13 +76,8 @@ void FileData::SetPendingDownload()
 	}
 }
 
-void FileData::SetRelativePathForGit(std::string relativePath)
+void FileData::SetRelativeDepotPath(const std::string& relativePath)
 {
-	ReplaceAll(relativePath, "%40", "@");
-	ReplaceAll(relativePath, "%23", "#");
-	ReplaceAll(relativePath, "%2A", "*");
-	// Replace %25 last to avoid interfering with other escape sequences
-	ReplaceAll(relativePath, "%25", "%");
 	m_data->relativePath = relativePath;
 }
 
