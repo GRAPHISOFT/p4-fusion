@@ -146,7 +146,8 @@ int Main(int argc, char** argv)
 		}
 		else if (lfsAPI == "lfs")
 		{
-			communicator.reset(new LFSComm(lfsServerUrl, lfsUsername, lfsPassword, lfsToken));
+			Credentials creds = lfsToken.empty() ? Credentials(lfsUsername, lfsPassword) : Credentials(lfsToken);
+			communicator.reset(new LFSComm(lfsServerUrl, creds));
 		}
 		lfsClient.reset(new LFSClient(git, std::move(communicator), lfsPatterns));
 

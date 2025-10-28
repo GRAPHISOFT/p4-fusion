@@ -1,3 +1,4 @@
+#include "credentials.h"
 #include "lfscomm.h"
 #include "lfs/lfs_client.h"
 #include <curl/curl.h>
@@ -14,7 +15,7 @@
 
 namespace
 {
-	
+
 // Retry configuration
 const int MaxRetryAttempts = 3;
 const int InitialRetryDelayMs = 1000;
@@ -23,13 +24,13 @@ const char* GetUserAgent()
 {
 	static std::string result = "curl/unknown";
 	static std::once_flag init_flag;
-	std::call_once(init_flag, []() {
+	std::call_once(init_flag, []()
+	    {
 		curl_version_info_data* version_info = curl_version_info(CURLVERSION_NOW);
 		if (version_info && version_info->version)
 		{
 			result = std::string("curl/") + version_info->version;
-		}
-	});
+		} });
 
 	return result.c_str();
 }
@@ -132,17 +133,19 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, std::stri
 	return totalSize;
 }
 
-void SetupBasicAuth(CURL* curl, const std::string& username, const std::string& password)
+void SetupAuth(CURL* curl, const Credentials& creds)
 {
-	curl_easy_setopt(curl, CURLOPT_HTTPAUTH, (long)CURLAUTH_BASIC);
-	curl_easy_setopt(curl, CURLOPT_USERNAME, username.c_str());
-	curl_easy_setopt(curl, CURLOPT_PASSWORD, password.c_str());
-}
-
-void SetupBearerAuth(CURL* curl, const std::string& token)
-{
-	curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
-	curl_easy_setopt(curl, CURLOPT_XOAUTH2_BEARER, token.c_str());
+	if (creds.GetType() == Credentials::Type::UserNameAndPass)
+	{
+		curl_easy_setopt(curl, CURLOPT_HTTPAUTH, (long)CURLAUTH_BASIC);
+		curl_easy_setopt(curl, CURLOPT_USERNAME, creds.GetUsername().c_str());
+		curl_easy_setopt(curl, CURLOPT_PASSWORD, creds.GetPassword().c_str());
+	}
+	else if (creds.GetType() == Credentials::Type::Token)
+	{
+		curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_BEARER);
+		curl_easy_setopt(curl, CURLOPT_XOAUTH2_BEARER, creds.GetToken().c_str());
+	}
 }
 
 // Helper function to create curl headers from a map
@@ -163,18 +166,9 @@ void SetupRequest(CURL* curl,
     size_t data_size,
     struct curl_slist* headers,
     RequestResult* pResult,
-    const std::string& username = "",
-    const std::string& password = "",
-    const std::string& token = "")
+    const Credentials& creds = Credentials())
 {
-	if (!token.empty())
-	{
-		SetupBearerAuth(curl, token);
-	}
-	else if (!username.empty() && !password.empty())
-	{
-		SetupBasicAuth(curl, username, password);
-	}
+	SetupAuth(curl, creds);
 
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data);
@@ -191,12 +185,10 @@ RequestResult PerformPostRequestWithRetry(CURL* curl,
     const void* data,
     size_t data_size,
     struct curl_slist* headers,
-    const std::string& username = "",
-    const std::string& password = "",
-    const std::string& token = "") 
+    const Credentials& auth = Credentials())
 {
 	RequestResult result = {};
-	SetupRequest(curl, url, data, data_size, headers, &result, username, password, token);
+	SetupRequest(curl, url, data, data_size, headers, &result, auth);
 
 	return PerformRequestWithRetry([&]() -> RequestResult
 	    {        
@@ -213,12 +205,10 @@ RequestResult PerformPostRequestWithRetry(CURL* curl,
 RequestResult PerformPutRequestWithRetry(CURL* curl, const std::string& url,
     const void* data, size_t data_size,
     struct curl_slist* headers,
-    const std::string& username = "",
-    const std::string& password = "",
-    const std::string& token = "")
+    const Credentials& auth = Credentials())
 {
 	RequestResult result = {};
-	SetupRequest(curl, url, data, data_size, headers, &result, username, password, token);
+	SetupRequest(curl, url, data, data_size, headers, &result, auth);
 
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
 
@@ -268,7 +258,7 @@ std::string CreateBatchUploadPayload(const std::string& oid, size_t fileSize)
 	return buffer.GetString();
 }
 
-BatchResponse PerformBatchUploadRequest(const std::string& serverUrl, const std::string& username, const std::string& password, const std::string& token, const std::string& oid, size_t fileSize)
+BatchResponse PerformBatchUploadRequest(const std::string& serverUrl, const Credentials& auth, const std::string& oid, size_t fileSize)
 {
 	BatchResponse result;
 
@@ -285,7 +275,7 @@ BatchResponse PerformBatchUploadRequest(const std::string& serverUrl, const std:
 	headers = curl_slist_append(headers, "Accept: application/vnd.git-lfs+json");
 
 	std::string batchUrl = serverUrl + "/objects/batch";
-	auto batchResult = PerformPostRequestWithRetry(curl.get(), batchUrl, payload.data(), payload.size(), headers, username, password, token);
+	auto batchResult = PerformPostRequestWithRetry(curl.get(), batchUrl, payload.data(), payload.size(), headers, auth);
 	curl_slist_free_all(headers);
 
 	if (batchResult.curl_result != CURLE_OK || batchResult.response_code != 200)
@@ -389,13 +379,15 @@ Communicator::UploadResult PerformUpload(const std::string& uploadUrl, const std
 	// Set up headers for file upload - start with default headers
 	struct curl_slist* uploadHeaders = nullptr;
 	// Only add default headers if they're not already present in actionHeaders
-	if (actionHeaders.find("Content-Type") == actionHeaders.end()) {
+	if (actionHeaders.find("Content-Type") == actionHeaders.end())
+	{
 		uploadHeaders = curl_slist_append(uploadHeaders, "Content-Type: application/octet-stream");
 	}
-	if (actionHeaders.find("Accept") == actionHeaders.end()) {
+	if (actionHeaders.find("Accept") == actionHeaders.end())
+	{
 		uploadHeaders = curl_slist_append(uploadHeaders, "Accept: application/vnd.git-lfs");
 	}
-	
+
 	// Add action-specific headers from the batch response
 	uploadHeaders = CreateHeadersFromMap(actionHeaders, uploadHeaders);
 
@@ -403,13 +395,13 @@ Communicator::UploadResult PerformUpload(const std::string& uploadUrl, const std
 	SetupRequest(curl.get(), uploadUrl, fileContents.data(), fileContents.size(), uploadHeaders, &uploadResult);
 	curl_easy_setopt(curl.get(), CURLOPT_CUSTOMREQUEST, "PUT");
 
-	uploadResult = PerformRequestWithRetry([&]() -> RequestResult {
+	uploadResult = PerformRequestWithRetry([&]() -> RequestResult
+	    {
 		uploadResult.curl_result = curl_easy_perform(curl.get());
 		if (uploadResult.curl_result == CURLE_OK) {
 			curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &uploadResult.response_code);
 		}
-		return uploadResult;
-	});
+		return uploadResult; });
 
 	curl_slist_free_all(uploadHeaders);
 
@@ -460,13 +452,13 @@ bool PerformVerify(const std::string& verifyUrl, const std::string& oid, size_t 
 	RequestResult verifyResult = {};
 	SetupRequest(curl.get(), verifyUrl, verifyPayload.data(), verifyPayload.size(), verifyHeaders, &verifyResult);
 
-	verifyResult = PerformRequestWithRetry([&]() -> RequestResult {
+	verifyResult = PerformRequestWithRetry([&]() -> RequestResult
+	    {
 		verifyResult.curl_result = curl_easy_perform(curl.get());
 		if (verifyResult.curl_result == CURLE_OK) {
 			curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &verifyResult.response_code);
 		}
-		return verifyResult;
-	});
+		return verifyResult; });
 
 	curl_slist_free_all(verifyHeaders);
 
@@ -475,11 +467,9 @@ bool PerformVerify(const std::string& verifyUrl, const std::string& oid, size_t 
 
 } // namespace
 
-LFSComm::LFSComm(const std::string& serverURL, const std::string& username, const std::string& password, const std::string& token)
-	: m_ServerURL(serverURL)
-	, m_Username(username)
-	, m_Password(password)
-	, m_Token(token)
+LFSComm::LFSComm(const std::string& serverURL, const Credentials& creds)
+    : m_ServerURL(serverURL)
+    , m_Creds(creds)
 {
 }
 
@@ -487,7 +477,7 @@ Communicator::UploadResult LFSComm::UploadFile(const std::vector<char>& fileCont
 {
 	std::string oid = LFSClient::CalcOID(fileContents);
 
-	auto batchResponse = PerformBatchUploadRequest(m_ServerURL, m_Username, m_Password, m_Token, oid, fileContents.size());
+	auto batchResponse = PerformBatchUploadRequest(m_ServerURL, m_Creds, oid, fileContents.size());
 	if (!batchResponse.success)
 	{
 		return UploadResult::Error;
