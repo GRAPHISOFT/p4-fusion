@@ -11,7 +11,7 @@
 class LFSComm : public Communicator
 {
 public:
-	LFSComm(const std::string& serverURL, const std::string& username, const std::string& password);
+	LFSComm(const std::string& serverURL, const std::string& username, const std::string& password, const std::string& token = "");
 	virtual ~LFSComm() = default;
 
 	UploadResult UploadFile(const std::vector<char>& fileContents) const override;
@@ -20,4 +20,5 @@ private:
 	const std::string m_ServerURL;
 	const std::string m_Username;
 	const std::string m_Password;
+	const std::string m_Token;
 };
