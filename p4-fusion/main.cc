@@ -433,6 +433,17 @@ int Main(int argc, char** argv)
 		}
 	}
 
+	// Check if all changelists appear only once
+	std::set<std::string> uniqueChangeListNumbers;
+	for (const ChangeList& cl : changes) {
+		uniqueChangeListNumbers.insert(cl.number);
+	}
+	if (uniqueChangeListNumbers.size() != changes.size())
+	{
+		ERR("Changelists appear more than once. Exiting.");
+		return 1;
+	}
+
 	// Return early if we have no work to do
 	if (changes.empty())
 	{
