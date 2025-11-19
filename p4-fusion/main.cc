@@ -352,14 +352,7 @@ int Main(int argc, char** argv)
 			bool foundMatchingBranch = false;
 			for (const Branch& branch : branchSet.GetBranches())
 			{
-				std::string branchDepotPath = depotPath;
-
-				if (STDHelpers::EndsWith(branchDepotPath, "/..."))
-				{
-					branchDepotPath = branchDepotPath.substr(0, branchDepotPath.size() - 4);
-				}
-
-				branchDepotPath += "/" + branch.depotBranchPath;
+				const std::string branchDepotPath = depotPath.substr(0, depotPath.size() - 3) + branch.depotBranchPath;
 
 				if (git.GetDepotPathFromLastCommit() == branchDepotPath)
 				{
@@ -393,14 +386,7 @@ int Main(int argc, char** argv)
 	{
 		for (const Branch& branch : branchSet.GetBranches())
 		{
-			std::string branchDepotPath = depotPath;
-
-			if (STDHelpers::EndsWith(branchDepotPath, "/..."))
-			{
-				branchDepotPath = branchDepotPath.substr(0, branchDepotPath.size() - 4);
-			}
-
-			branchDepotPath += "/" + branch.depotBranchPath + "/...";
+			const std::string branchDepotPath = depotPath.substr(0, depotPath.size() - 3) + branch.depotBranchPath + "/...";
 
 			std::vector<ChangeList> branchChanges = std::move(p4.Changes(branchDepotPath, resumeFromCL, maxChanges).GetChanges());
 			for (ChangeList& cl : branchChanges)
