@@ -382,7 +382,6 @@ int Main(int argc, char** argv)
 			}
 		}
 
-
 		resumeFromCL = git.DetectLatestCL();
 		WARN("Detected last CL committed as CL " << resumeFromCL);
 	}
@@ -406,7 +405,7 @@ int Main(int argc, char** argv)
 			std::vector<ChangeList> branchChanges = std::move(p4.Changes(branchDepotPath, resumeFromCL, maxChanges).GetChanges());
 			for (ChangeList& cl : branchChanges)
 			{
-				changes.push_back(std::move (cl));
+				changes.push_back(std::move(cl));
 			}
 		}
 		std::sort(changes.begin(), changes.end());
@@ -415,7 +414,6 @@ int Main(int argc, char** argv)
 	{
 		changes = std::move(p4.Changes(depotPath, resumeFromCL, maxChanges).GetChanges());
 	}
-
 
 	if (streamMappings)
 	{
@@ -547,12 +545,12 @@ int Main(int argc, char** argv)
 				mergeFrom = branchGroup.sourceBranch;
 			}
 
-			std::string depotPathString = branchSet.HasMergeableBranch () ? branchGroup.depotBranchPath : depotPath;
-			if (STDHelpers::EndsWith (depotPathString, "/..."))
+			std::string depotPathString = branchSet.HasMergeableBranch() ? branchGroup.depotBranchPath : depotPath;
+			if (STDHelpers::EndsWith(depotPathString, "/..."))
 			{
-				depotPathString = depotPathString.substr (0, depotPathString.size () - 3);
+				depotPathString = depotPathString.substr(0, depotPathString.size() - 3);
 			}
-			if (!STDHelpers::StartsWith (depotPathString, "//"))
+			if (!STDHelpers::StartsWith(depotPathString, "//"))
 			{
 				depotPathString = "//" + depotPathString;
 			}
