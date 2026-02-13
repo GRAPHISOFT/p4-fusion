@@ -201,7 +201,7 @@ bool Arguments::IsValid() const
 		}
 	}
 
-	const bool hasAnyLFSParam = !GetLFSSpecs().empty() || !GetLFSServerUrl().empty() || !GetLFSUsername().empty() || !GetLFSPassword().empty() || !GetLFSToken().empty() || !GetLFSAPI().empty() || !GetLFSS3Bucket().empty() || !GetLFSS3Repository().empty();
+	const bool hasAnyLFSParam = !GetLFSSpecs().empty() || !GetLFSServerUrl().empty() || !GetLFSUsername().empty() || !GetLFSPassword().empty() || !GetLFSToken().empty() || !GetLFSS3Bucket().empty() || !GetLFSS3Repository().empty();
 	const bool hasAllLFSParams = !GetLFSSpecs().empty() && !GetLFSServerUrl().empty() && !GetLFSAPI().empty();
 	if (hasAnyLFSParam && !hasAllLFSParams)
 		return false;
