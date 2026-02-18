@@ -390,11 +390,13 @@ Communicator::UploadResult PerformUpload(const std::string& uploadUrl, const std
 		uploadHeaders = curl_slist_append(uploadHeaders, "Accept: application/vnd.git-lfs");
 	}
 
+    const Credentials& authToUse = (actionHeaders.find("Authorization") == actionHeaders.end()) ? auth : Credentials();
+
 	// Add action-specific headers from the batch response
 	uploadHeaders = CreateHeadersFromMap(actionHeaders, uploadHeaders);
 
 	RequestResult uploadResult = {};
-	SetupRequest(curl.get(), uploadUrl, fileContents.data(), fileContents.size(), uploadHeaders, &uploadResult, auth);
+	SetupRequest(curl.get(), uploadUrl, fileContents.data(), fileContents.size(), uploadHeaders, &uploadResult, authToUse);
 	curl_easy_setopt(curl.get(), CURLOPT_CUSTOMREQUEST, "PUT");
 
 	uploadResult = PerformRequestWithRetry([&]() -> RequestResult
@@ -451,10 +453,10 @@ bool PerformVerify(const std::string& verifyUrl, const std::string& oid, size_t 
 	// Add action-specific headers from the batch response
 	verifyHeaders = CreateHeadersFromMap(actionHeaders, verifyHeaders);
 
-	// Perform request without authentication (headers from action should contain auth)
-	RequestResult verifyResult = {};
-	SetupRequest(curl.get(), verifyUrl, verifyPayload.data(), verifyPayload.size(), verifyHeaders, &verifyResult, auth);
+    const Credentials& authToUse = (actionHeaders.find("Authorization") == actionHeaders.end()) ? auth : Credentials();
 
+	RequestResult verifyResult = {};
+	SetupRequest(curl.get(), verifyUrl, verifyPayload.data(), verifyPayload.size(), verifyHeaders, &verifyResult, authToUse);
 	verifyResult = PerformRequestWithRetry([&]() -> RequestResult
 	    {
 		    verifyResult.curl_result = curl_easy_perform(curl.get());
