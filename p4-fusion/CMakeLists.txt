@@ -48,48 +48,9 @@ endif(APPLE)
 message(${OPENSSL_SSL_LIBRARIES})
 message(${OPENSSL_CRYPTO_LIBRARIES})
 
-include(ExternalProject)
-
-ExternalProject_Add(aws-sdk
-    GIT_REPOSITORY    https://github.com/aws/aws-sdk-cpp.git
-    GIT_TAG           1.11.640
-    CMAKE_ARGS        -DBUILD_SHARED_LIBS=OFF
-                      -DAUTORUN_UNIT_TESTS=OFF
-                      -DBUILD_ONLY=s3
-                      -DCMAKE_INSTALL_PREFIX=${CMAKE_SOURCE_DIR}/vendor/aws-sdk
-    PREFIX            ${CMAKE_CURRENT_BINARY_DIR}/aws-sdk
-    BUILD_ALWAYS      TRUE
-    TEST_COMMAND      ""
-)
-
-add_dependencies(p4-fusion aws-sdk)
-
-target_include_directories(p4-fusion PUBLIC
-    ../vendor/aws-sdk/include
-)
-
-target_link_directories(p4-fusion PUBLIC
-    ../vendor/aws-sdk/lib
-)
-
-set(AWSSDK_LINK_LIBRARIES
-    libaws-c-auth.a
-    libaws-c-cal.a
-    libaws-c-common.a
-    libaws-c-compression.a
-    libaws-c-event-stream.a
-    libaws-c-http.a
-    libaws-c-io.a
-    libaws-c-mqtt.a
-    libaws-c-s3.a
-    libaws-c-sdkutils.a
-    libaws-checksums.a
-    libaws-cpp-sdk-core.a
-    libaws-cpp-sdk-s3.a
-    libaws-crt-cpp.a
-)
-
 target_link_libraries(p4-fusion PUBLIC
+    aws-cpp-sdk-core
+    aws-cpp-sdk-s3
     ${Frameworks}
     client
     rpc
@@ -99,13 +60,6 @@ target_link_libraries(p4-fusion PUBLIC
     ${OPENSSL_CRYPTO_LIBRARIES}
     ${CURL_LIBRARIES}
     ${ZLIB_LIBRARIES}
-    ${AWSSDK_LINK_LIBRARIES}
     libgit2package
     minitrace
-)
-
-add_custom_target(deepclean
-    COMMAND ${CMAKE_COMMAND} -E rm -rf ${CMAKE_SOURCE_DIR}/build
-    COMMAND ${CMAKE_COMMAND} -E rm -rf ${CMAKE_SOURCE_DIR}/vendor/aws-sdk
-    COMMENT "Removing AWS SDK on clean"
 )

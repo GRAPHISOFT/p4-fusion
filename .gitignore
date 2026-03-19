@@ -1,7 +1,6 @@
 # Build binaries
 build/
 helix-core-api/
-aws-sdk/
 
 # Misc.
 .DS_Store
