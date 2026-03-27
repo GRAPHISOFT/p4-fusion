@@ -432,20 +432,25 @@ int Main(int argc, char** argv)
 	{
 		std::set<std::string> uniqueChangeListNumbers;
 		std::set<std::string> notUniqueChangeListNumbers;
-		for (const ChangeList& cl : changes)
+		std::vector<int> markForRemove;
+		for (int i = 0; i < changes.size(); ++i)
 		{
+			ChangeList& cl = changes.at(i);
 			if (!uniqueChangeListNumbers.insert(cl.number).second)
 			{
 				notUniqueChangeListNumbers.insert(cl.number);
+				markForRemove.push_back(i);
 			}
 		}
 		if (!notUniqueChangeListNumbers.empty())
 		{
 			WARN("Changelists appear in more than one branch! These will appear in each branch.");
 			for (const auto& cl : notUniqueChangeListNumbers)
-			{
 				WARN("Duplicate changelist: " << cl);
-			}
+
+			// Remove duplicates
+			for (int i = markForRemove.size() - 1; i >= 0; --i)
+			    changes.erase(changes.begin() + markForRemove[i]);
 		}
 	}
 
