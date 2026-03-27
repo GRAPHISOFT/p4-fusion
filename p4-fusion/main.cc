@@ -426,7 +426,7 @@ int Main(int argc, char** argv)
 		}
 	}
 
-	// Check if all changelists appear only once
+	// Detect and log changelists that appear more than once across branches
 	{
 		std::set<std::string> uniqueChangeListNumbers;
 		std::set<std::string> notUniqueChangeListNumbers;
