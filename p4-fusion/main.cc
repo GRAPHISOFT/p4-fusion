@@ -439,10 +439,10 @@ int Main(int argc, char** argv)
 		}
 		if (!notUniqueChangeListNumbers.empty())
 		{
-			ERR("Changelists appear more than once. Exiting.");
+			WARN("Changelists appear in more than one branch! These will appear in each branch.");
 			for (const auto& cl : notUniqueChangeListNumbers)
 			{
-				ERR("Duplicate changelist: " << cl);
+				WARN("Duplicate changelist: " << cl);
 			}
 		}
 	}
