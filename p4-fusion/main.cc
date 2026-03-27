@@ -561,7 +561,7 @@ int Main(int argc, char** argv)
 				mergeFrom = branchGroup.sourceBranch;
 			}
 
-			std::string depotPathString = depotPathString.substr(0, depotPathString.size() - 3);
+			std::string depotPathString = depotPath.substr(0, depotPath.size() - 3);
 			if (branchSet.HasMergeableBranch())
 			{
 				depotPathString += branchGroup.depotBranchPath;
