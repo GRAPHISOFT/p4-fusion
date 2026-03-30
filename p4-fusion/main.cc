@@ -430,8 +430,8 @@ int Main(int argc, char** argv)
 	{
 		std::set<std::string> uniqueChangeListNumbers;
 		std::set<std::string> notUniqueChangeListNumbers;
-		std::vector<int> markForRemove;
-		for (int i = 0; i < changes.size(); ++i)
+		std::vector<size_t> markForRemove;
+		for (size_t i = 0; i < changes.size(); ++i)
 		{
 			ChangeList& cl = changes.at(i);
 			if (!uniqueChangeListNumbers.insert(cl.number).second)
@@ -447,8 +447,8 @@ int Main(int argc, char** argv)
 				WARN("Duplicate changelist: " << cl);
 
 			// Remove duplicates
-			for (int i = markForRemove.size() - 1; i >= 0; --i)
-			    changes.erase(changes.begin() + markForRemove[i]);
+			for (size_t i = markForRemove.size(); i > 0; --i)
+			    changes.erase(changes.begin() + markForRemove[i - 1]);
 		}
 	}
 
