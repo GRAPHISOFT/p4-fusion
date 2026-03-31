@@ -448,7 +448,7 @@ int Main(int argc, char** argv)
 
 			// Remove duplicates
 			for (size_t i = markForRemove.size(); i > 0; --i)
-			    changes.erase(changes.begin() + markForRemove[i - 1]);
+				changes.erase(changes.begin() + markForRemove[i - 1]);
 		}
 	}
 
