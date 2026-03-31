@@ -23,3 +23,19 @@ void Log::DisableColoredOutput()
 	ColorGreen = COLOR_NORMAL;
 	ColorNormal = COLOR_NORMAL;
 }
+
+
+std::string Log::Timestamp()
+{
+	const auto now = std::chrono::system_clock::now();
+	const auto time = std::chrono::system_clock::to_time_t(now);
+	const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
+	std::tm tm;
+	localtime_r(&time, &tm);
+
+	std::ostringstream oss;
+	oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count();
+
+	return oss.str();
+}

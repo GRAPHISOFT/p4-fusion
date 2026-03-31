@@ -6,6 +6,11 @@
  */
 #pragma once
 
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <sstream>
+
 class Log
 {
 public:
@@ -15,19 +20,21 @@ public:
 	static const char* ColorNormal;
 
 	static void DisableColoredOutput();
+
+	static std::string Timestamp();
 };
 
-#define PRINT(x) std::cout << "[ PRINT @ " << __func__ << ":" << __LINE__ << " ] " << x << std::endl
+#define PRINT(x) std::cout << "[ " << Log::Timestamp() << " PRINT @ " << __func__ << ":" << __LINE__ << " ] " << x << std::endl
 
-#define ERR(x)                                                        \
-	std::cerr << Log::ColorRed                                        \
-	          << "[ ERROR @ " << __func__ << ":" << __LINE__ << " ] " \
+#define ERR(x)                                                                              \
+	std::cerr << Log::ColorRed                                                              \
+	          << "[ " << Log::Timestamp() << " ERROR @ " << __func__ << ":" << __LINE__ << " ] " \
 	          << x << Log::ColorNormal << std::endl
 
-#define WARN(x) std::cerr << Log::ColorYellow                                       \
-	                      << "[ WARNING @ " << __func__ << ":" << __LINE__ << " ] " \
+#define WARN(x) std::cerr << Log::ColorYellow                                                         \
+	                      << "[ " << Log::Timestamp() << " WARNING @ " << __func__ << ":" << __LINE__ << " ] " \
 	                      << x << Log::ColorNormal << std::endl
 
-#define SUCCESS(x) std::cerr << Log::ColorGreen                                        \
-	                         << "[ SUCCESS @ " << __func__ << ":" << __LINE__ << " ] " \
+#define SUCCESS(x) std::cerr << Log::ColorGreen                                                          \
+	                         << "[ " << Log::Timestamp() << " SUCCESS @ " << __func__ << ":" << __LINE__ << " ] " \
 	                         << x << Log::ColorNormal << std::endl
