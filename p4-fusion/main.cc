@@ -426,16 +426,30 @@ int Main(int argc, char** argv)
 		}
 	}
 
-	// Check if all changelists appear only once
-	std::set<std::string> uniqueChangeListNumbers;
-	for (const ChangeList& cl : changes)
+	// Detect and log changelists that appear more than once across branches
 	{
-		uniqueChangeListNumbers.insert(cl.number);
-	}
-	if (uniqueChangeListNumbers.size() != changes.size())
-	{
-		ERR("Changelists appear more than once. Exiting.");
-		return 1;
+		std::set<std::string> uniqueChangeListNumbers;
+		std::set<std::string> notUniqueChangeListNumbers;
+		std::vector<size_t> markForRemove;
+		for (size_t i = 0; i < changes.size(); ++i)
+		{
+			ChangeList& cl = changes.at(i);
+			if (!uniqueChangeListNumbers.insert(cl.number).second)
+			{
+				notUniqueChangeListNumbers.insert(cl.number);
+				markForRemove.push_back(i);
+			}
+		}
+		if (!notUniqueChangeListNumbers.empty())
+		{
+			WARN("Changelists appear in more than one branch! These will appear in each branch.");
+			for (const auto& cl : notUniqueChangeListNumbers)
+				WARN("Duplicate changelist: " << cl);
+
+			// Remove duplicates
+			for (size_t i = markForRemove.size(); i > 0; --i)
+				changes.erase(changes.begin() + markForRemove[i - 1]);
+		}
 	}
 
 	// Return early if we have no work to do
