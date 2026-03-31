@@ -354,8 +354,8 @@ int Main(int argc, char** argv)
 	std::string resumeFromCL;
 	if (git.IsHEADExists())
 	{
-		std::string lastCommitDepotPath = git.GetDepotPathFromLastCommit();
-		std::string depotPathWithoutDots = depotPath.substr(0, depotPath.size() - 3);
+		const std::string lastCommitDepotPath = git.GetDepotPathFromLastCommit();
+		const std::string depotPathWithoutDots = depotPath.substr(0, depotPath.size() - 3);
 		if (branchSet.HasMergeableBranch())
 		{
 			bool foundMatchingBranch = false;
