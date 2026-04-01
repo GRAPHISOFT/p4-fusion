@@ -6,6 +6,11 @@
  */
 #include "log.h"
 
+#include <mutex>
+#include <thread>
+#include <unordered_map>
+
+
 #define COLOR_RED "\033[91m"
 #define COLOR_YELLOW "\033[93m"
 #define COLOR_GREEN "\033[32m"
@@ -40,4 +45,19 @@ std::string Log::Timestamp()
 	oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count();
 
 	return oss.str();
+}
+
+std::string Log::ThreadName()
+{
+	static std::mutex mtx;
+	static std::unordered_map<std::thread::id, int> ids;
+	static int nextId = 0;
+
+	const auto threadID = std::this_thread::get_id();
+	std::lock_guard<std::mutex> lock(mtx);
+	auto it = ids.find(threadID);
+	if (it == ids.end())
+		it = ids.emplace(threadID, nextId++).first;
+
+	return "Thread_" + (it->second == 0 ? "Main" : std::to_string(it->second));
 }

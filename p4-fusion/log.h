@@ -23,40 +23,44 @@ public:
 	///          before any worker threads are spawned.
 	static void DisableColoredOutput();
 
+	/// Thread-safe.
 	static std::string Timestamp();
+
+	/// Thread-safe.
+	static std::string ThreadName();
 };
 
 #define PRINT(x)                                                                                        \
 	do                                                                                                  \
 	{                                                                                                   \
 		std::ostringstream _oss;                                                                        \
-		_oss << "[ " << Log::Timestamp() << " PRINT @ " << __func__ << ":" << __LINE__ << " ] " << x;  \
-		std::cout << _oss.str() << std::endl;                                                           \
+		_oss << "[ " << Log::Timestamp() << " " << Log::ThreadName() << " PRINT @ " << __func__ << ":" << __LINE__ << " ] " << x << '\n';  \
+		std::cout << _oss.str() << std::flush;                                                           \
 	} while (0)
 
 #define ERR(x)                                                                                                         \
 	do                                                                                                                 \
 	{                                                                                                                  \
 		std::ostringstream _oss;                                                                                       \
-		_oss << Log::ColorRed << "[ " << Log::Timestamp() << " ERROR @ " << __func__ << ":" << __LINE__ << " ] " << x \
-		     << Log::ColorNormal;                                                                                      \
-		std::cerr << _oss.str() << std::endl;                                                                          \
+		_oss << Log::ColorRed << "[ " << Log::Timestamp() << " " << Log::ThreadName() << " ERROR @ " << __func__ << ":" << __LINE__ << " ] " << x \
+		     << Log::ColorNormal << '\n';                                                                              \
+		std::cerr << _oss.str() << std::flush;                                                                          \
 	} while (0)
 
 #define WARN(x)                                                                                                          \
 	do                                                                                                                   \
 	{                                                                                                                    \
 		std::ostringstream _oss;                                                                                         \
-		_oss << Log::ColorYellow << "[ " << Log::Timestamp() << " WARNING @ " << __func__ << ":" << __LINE__ << " ] "   \
-		     << x << Log::ColorNormal;                                                                                   \
-		std::cerr << _oss.str() << std::endl;                                                                            \
+		_oss << Log::ColorYellow << "[ " << Log::Timestamp() << " " << Log::ThreadName() << " WARNING @ " << __func__ << ":" << __LINE__ << " ] "   \
+		     << x << Log::ColorNormal << '\n';                                                                           \
+		std::cerr << _oss.str() << std::flush;                                                                            \
 	} while (0)
 
 #define SUCCESS(x)                                                                                                       \
 	do                                                                                                                   \
 	{                                                                                                                    \
 		std::ostringstream _oss;                                                                                         \
-		_oss << Log::ColorGreen << "[ " << Log::Timestamp() << " SUCCESS @ " << __func__ << ":" << __LINE__ << " ] "    \
-		     << x << Log::ColorNormal;                                                                                   \
-		std::cerr << _oss.str() << std::endl;                                                                            \
+		_oss << Log::ColorGreen << "[ " << Log::Timestamp() << " " << Log::ThreadName() << " SUCCESS @ " << __func__ << ":" << __LINE__ << " ] "    \
+		     << x << Log::ColorNormal << '\n';                                                                           \
+		std::cerr << _oss.str() << std::flush;                                                                            \
 	} while (0)
