@@ -354,14 +354,16 @@ int Main(int argc, char** argv)
 	std::string resumeFromCL;
 	if (git.IsHEADExists())
 	{
+		const std::string lastCommitDepotPath = git.GetDepotPathFromLastCommit();
+		const std::string depotPathWithoutDots = depotPath.substr(0, depotPath.size() - 3);
 		if (branchSet.HasMergeableBranch())
 		{
 			bool foundMatchingBranch = false;
 			for (const Branch& branch : branchSet.GetBranches())
 			{
-				const std::string branchDepotPath = depotPath.substr(0, depotPath.size() - 3) + branch.depotBranchPath;
+				const std::string branchDepotPath = depotPathWithoutDots + branch.depotBranchPath;
 
-				if (git.GetDepotPathFromLastCommit() == branchDepotPath)
+				if (lastCommitDepotPath == branchDepotPath)
 				{
 					foundMatchingBranch = true;
 					break;
@@ -375,7 +377,7 @@ int Main(int argc, char** argv)
 		}
 		else
 		{
-			if (git.GetDepotPathFromLastCommit() + "..." != depotPath)
+			if (lastCommitDepotPath != depotPathWithoutDots)
 			{
 				ERR("Git repository at " << srcPath << " was not initially cloned with depotPath = \"" << depotPath << "\". Exiting.");
 				return 1;
@@ -564,14 +566,10 @@ int Main(int argc, char** argv)
 				mergeFrom = branchGroup.sourceBranch;
 			}
 
-			std::string depotPathString = branchSet.HasMergeableBranch() ? branchGroup.depotBranchPath : depotPath;
-			if (STDHelpers::EndsWith(depotPathString, "/..."))
+			std::string depotPathString = depotPath.substr(0, depotPath.size() - 3);
+			if (branchSet.HasMergeableBranch())
 			{
-				depotPathString = depotPathString.substr(0, depotPathString.size() - 3);
-			}
-			if (!STDHelpers::StartsWith(depotPathString, "//"))
-			{
-				depotPathString = "//" + depotPathString;
+				depotPathString += branchGroup.depotBranchPath;
 			}
 
 			std::string commitSHA = git.Commit(depotPathString,
