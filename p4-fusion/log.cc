@@ -10,7 +10,6 @@
 #include <thread>
 #include <unordered_map>
 
-
 #define COLOR_RED "\033[91m"
 #define COLOR_YELLOW "\033[93m"
 #define COLOR_GREEN "\033[32m"
@@ -50,7 +49,6 @@ void Log::WriteToLogFile(const std::string& message)
 		logFileStream << message << std::flush;
 	}
 }
-
 
 std::string Log::Timestamp()
 {
