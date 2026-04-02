@@ -14,10 +14,18 @@
 class Log
 {
 public:
+	enum class LogLevel
+	{
+		Normal = 0,
+		Verbose
+	};
+
 	static const char* ColorRed;
 	static const char* ColorYellow;
 	static const char* ColorGreen;
 	static const char* ColorNormal;
+
+	static LogLevel CurrentLogLevel;
 
 	/// @warning NOT thread-safe. Must be called from the main thread only,
 	///          before any worker threads are spawned.
@@ -33,12 +41,17 @@ public:
 	static std::string GetLogLineHeader(const char* logType, const char* func, int line);
 };
 
-#define PRINT(message) \
+#define PRINT(message) PRINT_WITH_LEVEL(Log::LogLevel::Normal, message)
+
+#define PRINT_VERBOSE(message) PRINT_WITH_LEVEL(Log::LogLevel::Verbose, message)
+
+#define PRINT_WITH_LEVEL(logLevel,message) \
 	do \
 	{ \
 		std::ostringstream logMessageStream; \
 		logMessageStream << Log::GetLogLineHeader ("PRINT", __func__, __LINE__) << message << '\n'; \
-		std::cout << logMessageStream.str() << std::flush; \
+		if (logLevel <= Log::CurrentLogLevel) \
+			std::cout << logMessageStream.str() << std::flush; \
 	} while (0)
 
 #define ERR(message) \

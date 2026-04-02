@@ -135,10 +135,10 @@ void ChangeList::DownloadBatch(std::shared_ptr<std::vector<std::string>> printBa
 					    switch (uploadResult)
 					    {
 					    case Communicator::UploadResult::Uploaded:
-						    SUCCESS("Uploaded file " << filePath << " to LFS (" << fileContents.size() << " bytes)");
+						    PRINT_VERBOSE("Uploaded file " << filePath << " to LFS (" << fileContents.size() << " bytes)");
 						    break;
 					    case Communicator::UploadResult::AlreadyExists:
-						    SUCCESS("File " << filePath << " already exists in LFS, skipping upload");
+						    PRINT_VERBOSE("File " << filePath << " already exists in LFS, skipping upload");
 						    break;
 					    case Communicator::UploadResult::Error:
 						    ERR("Failed to upload file " << filePath << " to LFS");

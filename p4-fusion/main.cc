@@ -85,6 +85,7 @@ int Main(int argc, char** argv)
 	                                                                       "Normally this results in them being ignored instead of committed. "
 	                                                                       "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing."
 	                                                                       "Can be specified more than once.");
+	Arguments::GetSingleton()->OptionalParameter("--verbose", "false", "Enable verbose logging.");
 
 	PRINT("p4-fusion " P4_FUSION_VERSION);
 
@@ -99,6 +100,12 @@ int Main(int argc, char** argv)
 	if (noColor)
 	{
 		Log::DisableColoredOutput();
+	}
+
+	const bool verbose = Arguments::GetSingleton()->GetVerbose() != "false";
+	if (verbose)
+	{
+		Log::CurrentLogLevel = Log::LogLevel::Verbose;
 	}
 
 	const bool noMerge = Arguments::GetSingleton()->GetNoMerge() != "false";
@@ -572,7 +579,7 @@ int Main(int argc, char** argv)
 				depotPathString += branchGroup.depotBranchPath;
 			}
 
-			PRINT("Running git commit based on " << cl.number << " into " << branchGroup.targetBranch << " branch");
+			PRINT_VERBOSE("Running git commit based on " << cl.number << " into " << branchGroup.targetBranch << " branch");
 
 			std::string commitSHA = git.Commit(depotPathString,
 			    cl.number,
@@ -583,7 +590,7 @@ int Main(int argc, char** argv)
 			    cl.timestamp,
 			    mergeFrom);
 
-			PRINT("Done git command");
+			PRINT_VERBOSE("Done git command");
 
 			// For scripting/testing purposes...
 			SUCCESS(

@@ -57,6 +57,7 @@ public:
 	std::string GetMaxChanges() const { return GetParameter("--maxChanges"); };
 	std::string GetFlushRate() const { return GetParameter("--flushRate"); };
 	std::string GetNoColor() const { return GetParameter("--noColor"); };
+	std::string GetVerbose() const { return GetParameter("--verbose"); };
 	std::string GetNoMerge() const { return GetParameter("--noMerge"); };
 	std::string GetStreamMappings() const { return GetParameter("--streamMappings"); };
 	std::vector<std::string> GetBranches() const { return GetParameterList("--branch"); };

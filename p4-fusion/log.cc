@@ -21,6 +21,8 @@ const char* Log::ColorYellow = COLOR_YELLOW;
 const char* Log::ColorGreen = COLOR_GREEN;
 const char* Log::ColorNormal = COLOR_NORMAL;
 
+Log::LogLevel Log::CurrentLogLevel = Log::LogLevel::Normal;
+
 // NOT thread-safe: mutates shared static pointers without synchronization.
 // Must be called from the main thread before any worker threads are spawned.
 void Log::DisableColoredOutput()

@@ -102,7 +102,7 @@ inline T P4API::RunEx(const char* command, const std::vector<std::string>& strin
 		argsCharArray.push_back((char*)arg.c_str());
 	}
 
-	PRINT("Running p4 command: " << command << argsString);
+	PRINT_VERBOSE("Running p4 command: " << command << argsString);
 
 	T clientUser;
 
@@ -154,7 +154,7 @@ inline T P4API::RunEx(const char* command, const std::vector<std::string>& strin
 		{
 			if (Reinitialize())
 			{
-				PRINT("Perforce connection was refreshed");
+				PRINT_VERBOSE("Perforce connection was refreshed");
 				break;
 			}
 			ERR("Could not refresh connection due to old age. Retrying in 5 seconds");
@@ -169,7 +169,7 @@ inline T P4API::RunEx(const char* command, const std::vector<std::string>& strin
 		}
 	}
 
-	PRINT("Done p4 command");
+	PRINT_VERBOSE("Done p4 command");
 
 	return clientUser;
 }
