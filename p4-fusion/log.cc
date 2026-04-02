@@ -61,3 +61,8 @@ std::string Log::ThreadName()
 
 	return "Thread_" + (it->second == 0 ? "Main" : std::to_string(it->second));
 }
+
+std::string Log::GetLogLineHeader(const char* logType, const char* func, int line)
+{
+	return "[ " + Timestamp() + " " + ThreadName() + " " + logType + " @ " + func + ":" + std::to_string(line) + " ] ";
+}

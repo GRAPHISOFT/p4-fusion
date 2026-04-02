@@ -28,39 +28,40 @@ public:
 
 	/// Thread-safe.
 	static std::string ThreadName();
+
+	/// Thread-safe.
+	static std::string GetLogLineHeader(const char* logType, const char* func, int line);
 };
 
-#define PRINT(x)                                                                                        \
-	do                                                                                                  \
-	{                                                                                                   \
-		std::ostringstream _oss;                                                                        \
-		_oss << "[ " << Log::Timestamp() << " " << Log::ThreadName() << " PRINT @ " << __func__ << ":" << __LINE__ << " ] " << x << '\n';  \
-		std::cout << _oss.str() << std::flush;                                                           \
+#define PRINT(message) \
+	do \
+	{ \
+		std::ostringstream logMessageStream; \
+		logMessageStream << Log::GetLogLineHeader ("PRINT", __func__, __LINE__) << message << '\n'; \
+		std::cout << logMessageStream.str() << std::flush; \
 	} while (0)
 
-#define ERR(x)                                                                                                         \
-	do                                                                                                                 \
-	{                                                                                                                  \
-		std::ostringstream _oss;                                                                                       \
-		_oss << Log::ColorRed << "[ " << Log::Timestamp() << " " << Log::ThreadName() << " ERROR @ " << __func__ << ":" << __LINE__ << " ] " << x \
-		     << Log::ColorNormal << '\n';                                                                              \
-		std::cerr << _oss.str() << std::flush;                                                                          \
+#define ERR(message) \
+	do \
+	{ \
+		std::ostringstream logMessageStream; \
+		logMessageStream << Log::ColorRed << Log::GetLogLineHeader("ERROR", __func__, __LINE__) << message \
+		     << Log::ColorNormal << '\n'; \
+		std::cerr << logMessageStream.str() << std::flush; \
 	} while (0)
 
-#define WARN(x)                                                                                                          \
-	do                                                                                                                   \
-	{                                                                                                                    \
-		std::ostringstream _oss;                                                                                         \
-		_oss << Log::ColorYellow << "[ " << Log::Timestamp() << " " << Log::ThreadName() << " WARNING @ " << __func__ << ":" << __LINE__ << " ] "   \
-		     << x << Log::ColorNormal << '\n';                                                                           \
-		std::cerr << _oss.str() << std::flush;                                                                            \
+#define WARN(message) \
+	do \
+	{ \
+		std::ostringstream logMessageStream; \
+		logMessageStream << Log::ColorYellow << Log::GetLogLineHeader("WARNING", __func__, __LINE__) << message << Log::ColorNormal << '\n'; \
+		std::cerr << logMessageStream.str() << std::flush; \
 	} while (0)
 
-#define SUCCESS(x)                                                                                                       \
-	do                                                                                                                   \
-	{                                                                                                                    \
-		std::ostringstream _oss;                                                                                         \
-		_oss << Log::ColorGreen << "[ " << Log::Timestamp() << " " << Log::ThreadName() << " SUCCESS @ " << __func__ << ":" << __LINE__ << " ] "    \
-		     << x << Log::ColorNormal << '\n';                                                                           \
-		std::cerr << _oss.str() << std::flush;                                                                            \
+#define SUCCESS(message) \
+	do \
+	{ \
+		std::ostringstream logMessageStream; \
+		logMessageStream << Log::ColorGreen << Log::GetLogLineHeader("SUCCESS", __func__, __LINE__) << message << Log::ColorNormal << '\n'; \
+		std::cerr << logMessageStream.str() << std::flush; \
 	} while (0)
