@@ -572,6 +572,8 @@ int Main(int argc, char** argv)
 				depotPathString += branchGroup.depotBranchPath;
 			}
 
+			PRINT("Running git commit based on " << cl.number << " into " << branchGroup.targetBranch << " branch");
+
 			std::string commitSHA = git.Commit(depotPathString,
 			    cl.number,
 			    fullName,
@@ -581,8 +583,9 @@ int Main(int argc, char** argv)
 			    cl.timestamp,
 			    mergeFrom);
 
+			PRINT("Done git command");
+
 			// For scripting/testing purposes...
-			PRINT("COMMIT:" << commitSHA << ":" << cl.number << ":" << branchGroup.targetBranch << ":");
 			SUCCESS(
 			    "CL " << cl.number << " --> Commit " << commitSHA
 			          << " with " << branchGroup.files.size() << " files"
@@ -598,8 +601,8 @@ int Main(int argc, char** argv)
 		    "CL " << cl.number << " with "
 		          << cl.changedFileGroups->totalFileCount << " files (" << i + 1 << "/" << changes.size()
 		          << "|" << lastDownloadedCL - (long long)i
-		          << "). Elapsed " << commitTimer.GetTimeS() / 60.0f << " mins. "
-		          << ((commitTimer.GetTimeS() / 60.0f) / (float)(i + 1)) * (changes.size() - i - 1) << " mins left.");
+		          << "). Elapsed " << commitTimer.GetTimeS() / 60.0f << " mins. (Estimated "
+		          << ((commitTimer.GetTimeS() / 60.0f) / (float)(i + 1)) * (changes.size() - i - 1) << " mins left.)");
 		// Clear out finished changelist.
 		cl.Clear();
 

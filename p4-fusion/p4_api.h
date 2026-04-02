@@ -102,6 +102,8 @@ inline T P4API::RunEx(const char* command, const std::vector<std::string>& strin
 		argsCharArray.push_back((char*)arg.c_str());
 	}
 
+	PRINT("Running p4 command: " << command << argsString);
+
 	T clientUser;
 
 	m_ClientAPI.SetArgv(argsCharArray.size(), argsCharArray.data());
@@ -150,15 +152,13 @@ inline T P4API::RunEx(const char* command, const std::vector<std::string>& strin
 		int refreshRetries = CommandRetries;
 		while (refreshRetries > 0)
 		{
-			WARN("Trying to refresh the connection due to age (" << m_Usage << " > " << CommandRefreshThreshold << ").");
 			if (Reinitialize())
 			{
-				SUCCESS("Connection was refreshed");
+				PRINT("Perforce connection was refreshed");
 				break;
 			}
 			ERR("Could not refresh connection due to old age. Retrying in 5 seconds");
 			std::this_thread::sleep_for(std::chrono::seconds(5));
-
 			refreshRetries--;
 		}
 
@@ -168,6 +168,8 @@ inline T P4API::RunEx(const char* command, const std::vector<std::string>& strin
 			std::exit(1);
 		}
 	}
+
+	PRINT("Done p4 command");
 
 	return clientUser;
 }
