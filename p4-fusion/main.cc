@@ -86,6 +86,7 @@ int Main(int argc, char** argv)
 	                                                                       "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing."
 	                                                                       "Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--verbose", "false", "Enable verbose logging.");
+	Arguments::GetSingleton()->OptionalParameter("--logFilePath", "", "Path to a log file. When set, all log output is also written to this file. Logging into file always use verbose mode.");
 
 	PRINT("p4-fusion " P4_FUSION_VERSION);
 
@@ -106,6 +107,16 @@ int Main(int argc, char** argv)
 	if (verbose)
 	{
 		Log::CurrentLogLevel = Log::LogLevel::Verbose;
+	}
+
+	const std::string logFilePath = Arguments::GetSingleton()->GetLogFilePath();
+	if (!logFilePath.empty())
+	{
+		if (!Log::StartLogFile(logFilePath))
+		{
+			ERR("Failed to open log file: " << logFilePath);
+			return 1;
+		}
 	}
 
 	const bool noMerge = Arguments::GetSingleton()->GetNoMerge() != "false";

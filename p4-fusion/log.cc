@@ -23,6 +23,9 @@ const char* Log::ColorNormal = COLOR_NORMAL;
 
 Log::LogLevel Log::CurrentLogLevel = Log::LogLevel::Normal;
 
+std::ofstream Log::logFileStream;
+std::mutex Log::logFileStreamMutex;
+
 // NOT thread-safe: mutates shared static pointers without synchronization.
 // Must be called from the main thread before any worker threads are spawned.
 void Log::DisableColoredOutput()
@@ -31,6 +34,21 @@ void Log::DisableColoredOutput()
 	ColorYellow = COLOR_NORMAL;
 	ColorGreen = COLOR_NORMAL;
 	ColorNormal = COLOR_NORMAL;
+}
+
+bool Log::StartLogFile(const std::string& filePath)
+{
+	logFileStream.open(filePath, std::ios::out | std::ios::app);
+	return logFileStream.is_open();
+}
+
+void Log::WriteToLogFile(const std::string& message)
+{
+	std::lock_guard<std::mutex> lock(logFileStreamMutex);
+	if (logFileStream.is_open())
+	{
+		logFileStream << message << std::flush;
+	}
 }
 
 

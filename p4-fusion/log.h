@@ -8,8 +8,11 @@
 
 #include <chrono>
 #include <ctime>
+#include <fstream>
 #include <iomanip>
+#include <mutex>
 #include <sstream>
+#include <string>
 
 class Log
 {
@@ -31,6 +34,13 @@ public:
 	///          before any worker threads are spawned.
 	static void DisableColoredOutput();
 
+	/// @warning NOT thread-safe. Must be called from the main thread only,
+	///          before any worker threads are spawned.
+	static bool StartLogFile(const std::string& filePath);
+
+	/// Thread-safe.
+	static void WriteToLogFile(const std::string& message);
+
 	/// Thread-safe.
 	static std::string Timestamp();
 
@@ -39,6 +49,10 @@ public:
 
 	/// Thread-safe.
 	static std::string GetLogLineHeader(const char* logType, const char* func, int line);
+
+private:
+	static std::ofstream logFileStream;
+	static std::mutex logFileStreamMutex;
 };
 
 #define PRINT(message) PRINT_WITH_LEVEL(Log::LogLevel::Normal, message)
@@ -52,29 +66,35 @@ public:
 		logMessageStream << Log::GetLogLineHeader ("PRINT", __func__, __LINE__) << message << '\n'; \
 		if (logLevel <= Log::CurrentLogLevel) \
 			std::cout << logMessageStream.str() << std::flush; \
+		Log::WriteToLogFile(logMessageStream.str()); \
 	} while (0)
 
 #define ERR(message) \
 	do \
 	{ \
 		std::ostringstream logMessageStream; \
-		logMessageStream << Log::ColorRed << Log::GetLogLineHeader("ERROR", __func__, __LINE__) << message \
-		     << Log::ColorNormal << '\n'; \
-		std::cerr << logMessageStream.str() << std::flush; \
+		logMessageStream << Log::GetLogLineHeader("ERROR", __func__, __LINE__) << message << '\n'; \
+		const std::string logMessage = logMessageStream.str(); \
+		std::cerr << (std::string(Log::ColorRed) + logMessage + std::string(Log::ColorNormal)) << std::flush; \
+		Log::WriteToLogFile(logMessage); \
 	} while (0)
 
 #define WARN(message) \
 	do \
 	{ \
 		std::ostringstream logMessageStream; \
-		logMessageStream << Log::ColorYellow << Log::GetLogLineHeader("WARNING", __func__, __LINE__) << message << Log::ColorNormal << '\n'; \
-		std::cerr << logMessageStream.str() << std::flush; \
+		logMessageStream << Log::GetLogLineHeader("WARNING", __func__, __LINE__) << message << '\n'; \
+		const std::string logMessage = logMessageStream.str(); \
+		std::cerr << (std::string(Log::ColorYellow) + logMessage + std::string(Log::ColorNormal)) << std::flush; \
+		Log::WriteToLogFile(logMessage); \
 	} while (0)
 
 #define SUCCESS(message) \
 	do \
 	{ \
 		std::ostringstream logMessageStream; \
-		logMessageStream << Log::ColorGreen << Log::GetLogLineHeader("SUCCESS", __func__, __LINE__) << message << Log::ColorNormal << '\n'; \
-		std::cerr << logMessageStream.str() << std::flush; \
+		logMessageStream << Log::GetLogLineHeader("SUCCESS", __func__, __LINE__) << message << '\n'; \
+		const std::string logMessage = logMessageStream.str(); \
+		std::cerr << (std::string(Log::ColorGreen) + logMessage + std::string(Log::ColorNormal)) << std::flush; \
+		Log::WriteToLogFile(logMessage); \
 	} while (0)
