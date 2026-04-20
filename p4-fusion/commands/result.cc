@@ -7,8 +7,8 @@
 #include "result.h"
 
 Result::Result(Result&& other) noexcept
-	: ClientUser()
-	, m_Error(other.m_Error)
+    : ClientUser()
+    , m_Error(other.m_Error)
 {
 }
 
