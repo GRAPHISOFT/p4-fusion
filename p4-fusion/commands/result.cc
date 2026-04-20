@@ -5,10 +5,11 @@
  * For full license text, see the LICENSE.txt file in the repo root or https://opensource.org/licenses/BSD-3-Clause
  */
 #include "result.h"
+#include <utility>
 
 Result::Result(Result&& other) noexcept
     : ClientUser()
-    , m_Error(other.m_Error)
+    , m_Error(std::move(other.m_Error))
 {
 }
 
@@ -16,7 +17,7 @@ Result& Result::operator=(Result&& other) noexcept
 {
 	if (this != &other)
 	{
-		m_Error = other.m_Error;
+		m_Error = std::move(other.m_Error);
 	}
 	return *this;
 }
