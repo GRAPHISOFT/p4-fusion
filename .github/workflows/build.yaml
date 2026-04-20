@@ -9,7 +9,7 @@ jobs:
     runs-on: "macos-latest"
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         submodules: true
         fetch-depth: 0
@@ -19,7 +19,7 @@ jobs:
         brew list openssl@3 &>/dev/null || brew install openssl@3
 
     - name: Cache vendor/
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: vendor/
         key: ${{ runner.OS }}-p4-fusion-vendor-cache-${{ github.ref }}
@@ -86,7 +86,7 @@ jobs:
         tar -C build/p4-fusion -czf pkg/p4-fusion-${{ steps.version.outputs.version }}.tar.gz p4-fusion
 
     - name: Publish release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: ${{ steps.version.outputs.version }}
         files: pkg/p4-fusion-${{ steps.version.outputs.version }}.tar.gz
