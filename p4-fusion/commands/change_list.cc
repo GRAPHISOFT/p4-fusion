@@ -130,7 +130,7 @@ void ChangeList::DownloadBatch(std::shared_ptr<std::vector<std::string>> printBa
 				    }
 				    else
 				    {
-					    const auto& fileContents = printData.GetPrintData().at(i).contents;
+					    const auto& fileContents = printData->GetPrintData().at(i).contents;
 					    const std::vector<char> pointerFileContents = lfsClient->CreatePointerFileContents(fileContents);
 					    Communicator::UploadResult uploadResult = lfsClient->UploadFile(fileContents);
 					    switch (uploadResult)

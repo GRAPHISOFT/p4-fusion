@@ -7,21 +7,6 @@
 #include "result.h"
 #include <utility>
 
-Result::Result(Result&& other) noexcept
-    : ClientUser()
-    , m_Error(std::move(other.m_Error))
-{
-}
-
-Result& Result::operator=(Result&& other) noexcept
-{
-	if (this != &other)
-	{
-		m_Error = std::move(other.m_Error);
-	}
-	return *this;
-}
-
 void Result::HandleError(Error* e)
 {
 	StrBuf str;
