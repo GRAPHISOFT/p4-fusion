@@ -5,6 +5,7 @@
  * For full license text, see the LICENSE.txt file in the repo root or https://opensource.org/licenses/BSD-3-Clause
  */
 #include "result.h"
+#include <utility>
 
 void Result::HandleError(Error* e)
 {
