@@ -54,7 +54,7 @@ public:
 	    const std::string& user,
 	    const std::string& email,
 	    const int& timezone,
-	    const std::string& desc,
+	    std::string desc,
 	    const int64_t& timestamp,
 	    const std::string& mergeFromStream);
 	void CloseIndex();

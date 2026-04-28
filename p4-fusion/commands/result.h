@@ -14,18 +14,14 @@ class Result : public ClientUser
 
 public:
 	Result() = default;
-	~Result() override = default;
-
-	// ClientUser base class contains a std::mutex which is neither copyable nor movable.
-	// Move operations default-construct a fresh ClientUser base and transfer
-	// only Result-level data. The ClientUser state is only needed during
-	// ClientApi::Run() and is not required after the command completes.
-	Result(const Result&) = delete;
-	Result& operator=(const Result&) = delete;
-	Result(Result&& other) noexcept;
-	Result& operator=(Result&& other) noexcept;
 
 	void HandleError(Error* e) override;
 
 	const Error& GetError() const { return m_Error; }
+
+	Result(const Result&) = delete;
+	Result& operator=(const Result&) = delete;
+
+	Result(Result&&) = delete;
+	Result& operator=(Result&&) = delete;
 };

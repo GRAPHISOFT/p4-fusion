@@ -44,14 +44,14 @@ void ChangeList::PrepareDownload(const BranchSet& branchSet)
 			    // copy will have the target files listing the from-file with
 			    // different changelists than the point-in-time source branch's
 			    // changelist.
-			    const FileLogResult& filelog = p4->FileLog(cl.number);
-			    cl.changedFileGroups = branchSet.ParseAffectedFiles(filelog.GetFileData(), lfsClient);
+			    std::unique_ptr<FileLogResult> filelog = p4->FileLog(cl.number);
+			    cl.changedFileGroups = branchSet.ParseAffectedFiles(filelog->GetFileData(), lfsClient);
 		    }
 		    else
 		    {
 			    // If we don't care about branches, then p4->Describe is much faster.
-			    const DescribeResult& describe = p4->Describe(cl.number);
-			    cl.changedFileGroups = branchSet.ParseAffectedFiles(describe.GetFileData(), lfsClient);
+			    std::unique_ptr<DescribeResult> describe = p4->Describe(cl.number);
+			    cl.changedFileGroups = branchSet.ParseAffectedFiles(describe->GetFileData(), lfsClient);
 		    }
 
 		    std::unique_lock<std::mutex> lock(*cl.stateMutex);
@@ -118,14 +118,15 @@ void ChangeList::DownloadBatch(std::shared_ptr<std::vector<std::string>> printBa
 		    // Only perform the batch processing when there are files to process.
 		    if (!printBatchFileData->empty())
 		    {
-			    const PrintResult& printData = p4->PrintFiles(*printBatchFiles);
+			    std::unique_ptr<PrintResult> printData = p4->PrintFiles(*printBatchFiles);
+
 			    for (int i = 0; i < printBatchFiles->size(); i++)
 			    {
 				    std::string filePath = P4Unescape(printBatchFileData->at(i)->GetRelativeDepotPath());
 				    // If in LFS mode, we determine whether a file is LFS-tracked, and if so, we do produce a pointer file and upload the file contents.
 				    if (!lfsClient || !lfsClient->IsLFSTracked(filePath))
 				    {
-					    printBatchFileData->at(i)->MoveContentsOnceFrom(printData.GetPrintData().at(i).contents);
+					    printBatchFileData->at(i)->MoveContentsOnceFrom(printData->GetPrintData().at(i).contents);
 				    }
 				    else
 				    {
