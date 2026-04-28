@@ -107,7 +107,6 @@ inline std::unique_ptr<T> P4API::RunEx(const char* command, const std::vector<st
 
 	std::unique_ptr<T> clientUser = std::unique_ptr<T>(new T());
 
-
 	m_ClientAPI.SetArgv(argsCharArray.size(), argsCharArray.data());
 	m_ClientAPI.Run(command, clientUser.get());
 
