@@ -120,10 +120,11 @@ mkdir "${workdir}/diffs"
 cp "${migration_log_file}" "${workdir}/migration-log.txt"
 
 # Extract out the commit/changelist history.
-# Each extracted line is in the format "(commit sha):(p4 changelist):(branch name)"
-grep -E '] COMMIT:' "${workdir}/migration-log.txt" \
-  | cut -f 2- -d ']' \
-  | cut -f 2- -d ':' \
+# Parses from SUCCESS lines like: "] CL 355720 --> Commit abc123 with N files." or
+#   "] CL 355720 --> Commit abc123 with N files to branch branchname."
+#   "] CL 355720 --> Commit abc123 with N files to branch branchname from branch other."
+grep -E '\] CL [0-9]+ --> Commit [0-9a-f]+' "${workdir}/migration-log.txt" \
+  | sed -E 's/.*\] CL ([0-9]+) --> Commit ([0-9a-f]+) with [0-9]+ files( to branch ([^ .]+)( from branch [^.]+)?)?\./\2:\1:\4:/' \
   > "${workdir}/history.txt"
 
 # Make a full file copy of the bare Git repository.
