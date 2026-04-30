@@ -86,7 +86,7 @@ int Main(int argc, char** argv)
 	                                                                       "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing."
 	                                                                       "Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--verbose", "false", "Enable verbose logging.");
-	Arguments::GetSingleton()->OptionalParameter("--logFilePath", "", "Path to a log file. When set, all log output is also written to this file. Logging into file always use verbose mode.");
+ 	Arguments::GetSingleton()->OptionalParameter("--logFilePath", "", "Path to a log file. When set, all log output is also written to this file. Logging into file always uses verbose mode.");
 
 	PRINT("p4-fusion " P4_FUSION_VERSION);
 
