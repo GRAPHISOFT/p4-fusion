@@ -21,6 +21,13 @@ jobs:
   macos:
     runs-on: macos-latest
 
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 2G
+      CCACHE_COMPRESS: "1"
+      CMAKE_C_COMPILER_LAUNCHER: ccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ccache
+
     steps:
     - uses: actions/checkout@v6
       with:
@@ -30,8 +37,18 @@ jobs:
         # binary and the release tag both point at the branch under test.
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-    - name: Install OpenSSL 3
-      run: brew list openssl@3 &>/dev/null || brew install openssl@3
+    - name: Install build dependencies
+      run: |
+        brew list openssl@3 &>/dev/null || brew install openssl@3
+        brew list ccache    &>/dev/null || brew install ccache
+
+    - name: Restore ccache
+      uses: actions/cache@v4
+      with:
+        path: ${{ env.CCACHE_DIR }}
+        key: ccache-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+        restore-keys: |
+          ccache-${{ runner.os }}-${{ runner.arch }}-
 
     - name: Download Helix Core C++ API
       run: |
@@ -99,6 +116,9 @@ jobs:
 
     - name: Build
       run: ./build.sh
+
+    - name: ccache stats
+      run: ccache --show-stats
 
     - name: Smoke test
       run: |
