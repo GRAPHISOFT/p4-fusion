@@ -41,7 +41,7 @@ jobs:
           IS_PRERELEASE=false
           IS_LATEST=true
         else
-          VERSION="$VERSION-$(echo "$BRANCH" | tr -c 'A-Za-z0-9.-' '-')"
+          VERSION="$VERSION-$(echo -n "$BRANCH" | tr -c 'A-Za-z0-9.-' '-')"
           IS_PRERELEASE=true
           IS_LATEST=false
         fi
