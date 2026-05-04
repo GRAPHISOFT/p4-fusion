@@ -38,14 +38,13 @@ jobs:
         TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       run: |
         set -euo pipefail
-        CALVER="v$(date -u +%Y%m%d).r$(git rev-list --count HEAD)"
+        VERSION="v$(date -u +%Y%m%d).r$(git rev-list --count HEAD)"
 
         if [ "$BRANCH" = "gs-specific" ]; then
-          VERSION="$CALVER"
           IS_PRERELEASE=false
           IS_LATEST=true
         else
-          VERSION="$CALVER-$(echo "$BRANCH" | tr '/' '-')"
+          VERSION="$VERSION-$(echo "$BRANCH" | tr '/' '-')"
           IS_PRERELEASE=true
           IS_LATEST=false
         fi
