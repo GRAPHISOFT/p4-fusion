@@ -15,7 +15,6 @@ jobs:
     - uses: actions/checkout@v6
       with:
         submodules: true
-        fetch-depth: 0
         # Build the actual PR head, not the synthetic merge commit, so the
         # binary and the release tag both point at the current branch.
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -39,7 +38,7 @@ jobs:
         TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       run: |
         set -euo pipefail
-        VERSION="v$(date -u +%Y%m%d).r$(git rev-list --count HEAD)"
+        VERSION="v$(date -u +%Y%m%d).r${{ github.run_number }}"
 
         if [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
           IS_PRERELEASE=false
