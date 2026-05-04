@@ -3,23 +3,13 @@ name: build-check
 on:
   pull_request:
   push:
-    branches: [gs-specific]
+    branches:
+      - gs-specific
   workflow_dispatch:
-    inputs:
-      release_type:
-        description: "What to publish"
-        type: choice
-        required: true
-        default: prerelease
-        options: [none, prerelease, release]
-      mark_as_latest:
-        description: "Mark as latest release (only for release_type=release)"
-        type: boolean
-        default: false
 
 jobs:
   macos:
-    runs-on: macos-latest
+    runs-on: "macos-latest"
 
     steps:
     - uses: actions/checkout@v6
@@ -27,11 +17,12 @@ jobs:
         submodules: true
         fetch-depth: 0
         # Build the actual PR head, not the synthetic merge commit, so the
-        # binary and the release tag both point at the branch under test.
+        # binary and the release tag both point at the current branch.
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-    - name: Install OpenSSL 3
-      run: brew list openssl@3 &>/dev/null || brew install openssl@3
+    - name: Ensure OpenSSL 3 is installed
+      run: |
+        brew list openssl@3 &>/dev/null || brew install openssl@3
 
     - name: Download Helix Core C++ API
       run: |
@@ -40,95 +31,67 @@ jobs:
         tar -C vendor/helix-core-api/mac -xzf p4api-openssl3.tgz --strip 1
         rm p4api-openssl3.tgz
 
-    - name: Resolve release parameters
-      id: release
+    - name: Determine version
+      id: version
       env:
-        EVENT: ${{ github.event_name }}
-        REF_TYPE: ${{ github.ref_type }}
-        REF_NAME: ${{ github.ref_name }}
         BRANCH: ${{ github.head_ref || github.ref_name }}
         TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        DISPATCH_TYPE: ${{ github.event.inputs.release_type }}
-        DISPATCH_LATEST: ${{ github.event.inputs.mark_as_latest }}
       run: |
         set -euo pipefail
+        CALVER="v$(date -u +%Y%m%d).r$(git rev-list --count HEAD)"
 
-        publish=true
-        prerelease=true
-        latest=false
-
-        if [ "$REF_TYPE" = "tag" ]; then
-          version="$REF_NAME"
-          prerelease=false
-          latest=true
+        if [ "$BRANCH" = "gs-specific" ]; then
+          VERSION="$CALVER"
+          IS_PRERELEASE=false
+          IS_LATEST=true
         else
-          calver="$(date -u +%Y%m%d).r$(git rev-list --count HEAD)"
-
-          case "$EVENT" in
-            workflow_dispatch)
-              case "$DISPATCH_TYPE" in
-                none)     publish=false ;;
-                release)  prerelease=false; latest="$DISPATCH_LATEST" ;;
-                *)        prerelease=true ;;
-              esac
-              ;;
-            push)
-              # Only configured branch reaching this job is gs-specific.
-              prerelease=false
-              latest=true
-              ;;
-          esac
-
-          if [ "$prerelease" = "true" ]; then
-            version="v${calver}-$(echo "$BRANCH" | tr '/' '-')"
-          else
-            version="v${calver}"
-          fi
+          VERSION="$CALVER-$(echo "$BRANCH" | tr '/' '-')"
+          IS_PRERELEASE=true
+          IS_LATEST=false
         fi
 
         {
-          echo "version=$version"
-          echo "publish=$publish"
-          echo "prerelease=$prerelease"
-          echo "latest=$latest"
+          echo "version=$VERSION"
+          echo "is_prerelease=$IS_PRERELEASE"
+          echo "is_latest=$IS_LATEST"
           echo "target_sha=$TARGET_SHA"
         } >> "$GITHUB_OUTPUT"
 
     - name: Generate CMake project
-      run: ./generate_cache.sh Release pt
+      run: |
+        ./generate_cache.sh Release pt
 
     - name: Build
-      run: ./build.sh
+      run: |
+        ./build.sh
 
     - name: Smoke test
       run: |
-        otool -L ./build/p4-fusion/p4-fusion
-        ./build/p4-fusion/p4-fusion --help
+        BINARY_PATH="./build/p4-fusion/p4-fusion"
+
+        echo "Dependency check..."
+        otool -L "$BINARY_PATH"
+
+        echo "Help output"
+        "$BINARY_PATH" --help
 
     - name: Test
-      run: ./build/tests/p4-fusion-test
+      run: |
+        ./build/tests/p4-fusion-test
 
     - name: Package binary
       run: |
         mkdir pkg
-        tar -C build/p4-fusion -czf "pkg/p4-fusion-${{ steps.release.outputs.version }}.tar.gz" p4-fusion
-
-    - name: Upload build artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: p4-fusion-${{ steps.release.outputs.version }}
-        path: pkg/p4-fusion-${{ steps.release.outputs.version }}.tar.gz
-        if-no-files-found: error
+        tar -C build/p4-fusion -czf pkg/p4-fusion-${{ steps.version.outputs.version }}.tar.gz p4-fusion
 
     - name: Publish release
-      if: steps.release.outputs.publish == 'true'
       uses: softprops/action-gh-release@v3
       with:
-        tag_name: ${{ steps.release.outputs.version }}
-        target_commitish: ${{ steps.release.outputs.target_sha }}
-        files: pkg/p4-fusion-${{ steps.release.outputs.version }}.tar.gz
-        prerelease: ${{ steps.release.outputs.prerelease }}
-        make_latest: ${{ steps.release.outputs.latest }}
+        tag_name: ${{ steps.version.outputs.version }}
+        target_commitish: ${{ steps.version.outputs.target_sha }}
+        files: pkg/p4-fusion-${{ steps.version.outputs.version }}.tar.gz
+        prerelease: ${{ steps.version.outputs.is_prerelease }}
+        make_latest: ${{ steps.version.outputs.is_latest }}
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
