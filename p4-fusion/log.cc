@@ -28,6 +28,12 @@ Log::LogLevel Log::CurrentLogLevel = Log::LogLevel::Normal;
 std::ofstream Log::logFileStream;
 std::mutex Log::logFileStreamMutex;
 
+// NOT thread-safe: must be called from the main thread before any worker threads are spawned.
+void Log::SetLogLevel(LogLevel logLevel)
+{
+	CurrentLogLevel = logLevel;
+}
+
 // NOT thread-safe: mutates shared static pointers without synchronization.
 // Must be called from the main thread before any worker threads are spawned.
 void Log::DisableColoredOutput()

@@ -28,7 +28,9 @@ public:
 		Success
 	};
 
-	static LogLevel CurrentLogLevel;
+	/// @warning NOT thread-safe. Must be called from the main thread only,
+	///          before any worker threads are spawned.
+	static void SetLogLevel(LogLevel logLevel);
 
 	/// @warning NOT thread-safe. Must be called from the main thread only,
 	///          before any worker threads are spawned.
@@ -45,10 +47,15 @@ public:
 	static std::string GetLogLineHeader(LogType logType, const char* func, int line);
 
 private:
+	static LogLevel CurrentLogLevel;
+
 	static const char* ColorRed;
 	static const char* ColorYellow;
 	static const char* ColorGreen;
 	static const char* ColorNormal;
+
+	static std::ofstream logFileStream;
+	static std::mutex logFileStreamMutex;
 
 	/// Thread-safe.
 	static std::string Timestamp();
@@ -58,9 +65,6 @@ private:
 
 	/// Thread-safe.
 	static void WriteToLogFile(const std::string& message);
-
-	static std::ofstream logFileStream;
-	static std::mutex logFileStreamMutex;
 };
 
 #define PRINT(message)                                                                                         \

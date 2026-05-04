@@ -106,7 +106,7 @@ int Main(int argc, char** argv)
 	const bool verbose = Arguments::GetSingleton()->GetVerbose() != "false";
 	if (verbose)
 	{
-		Log::CurrentLogLevel = Log::LogLevel::Verbose;
+		Log::SetLogLevel(Log::LogLevel::Verbose);
 	}
 
 	const std::string logFilePath = Arguments::GetSingleton()->GetLogFilePath();
