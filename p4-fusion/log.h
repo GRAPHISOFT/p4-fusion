@@ -6,10 +6,7 @@
  */
 #pragma once
 
-#include <chrono>
-#include <ctime>
 #include <fstream>
-#include <iomanip>
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -23,10 +20,13 @@ public:
 		Verbose
 	};
 
-	static const char* ColorRed;
-	static const char* ColorYellow;
-	static const char* ColorGreen;
-	static const char* ColorNormal;
+	enum class LogType
+	{
+		Print,
+		Error,
+		Warning,
+		Success
+	};
 
 	static LogLevel CurrentLogLevel;
 
@@ -38,8 +38,17 @@ public:
 	///          before any worker threads are spawned.
 	static bool StartLogFile(const std::string& filePath);
 
+	/// Thread-safe. Outputs to stderr or stdout based on LogType, and writes to the log file.
+	static void Logging(const std::string& message, LogType logType, LogLevel logLevel);
+
 	/// Thread-safe.
-	static void WriteToLogFile(const std::string& message);
+	static std::string GetLogLineHeader(LogType logType, const char* func, int line);
+
+private:
+	static const char* ColorRed;
+	static const char* ColorYellow;
+	static const char* ColorGreen;
+	static const char* ColorNormal;
 
 	/// Thread-safe.
 	static std::string Timestamp();
@@ -48,53 +57,48 @@ public:
 	static std::string ThreadName();
 
 	/// Thread-safe.
-	static std::string GetLogLineHeader(const char* logType, const char* func, int line);
+	static void WriteToLogFile(const std::string& message);
 
-private:
 	static std::ofstream logFileStream;
 	static std::mutex logFileStreamMutex;
 };
 
-#define PRINT(message) PRINT_WITH_LEVEL(Log::LogLevel::Normal, message)
-
-#define PRINT_VERBOSE(message) PRINT_WITH_LEVEL(Log::LogLevel::Verbose, message)
-
-#define PRINT_WITH_LEVEL(logLevel, message)                                                        \
-	do                                                                                             \
-	{                                                                                              \
-		std::ostringstream logMessageStream;                                                       \
-		logMessageStream << Log::GetLogLineHeader("PRINT", __func__, __LINE__) << message << '\n'; \
-		if (logLevel <= Log::CurrentLogLevel)                                                      \
-			std::cout << logMessageStream.str() << std::flush;                                     \
-		Log::WriteToLogFile(logMessageStream.str());                                               \
+#define PRINT(message)                                                                                         \
+	do                                                                                                         \
+	{                                                                                                          \
+		std::ostringstream logMessageStream;                                                                   \
+		logMessageStream << Log::GetLogLineHeader(Log::LogType::Print, __func__, __LINE__) << message << '\n'; \
+		Log::Logging(logMessageStream.str(), Log::LogType::Print, Log::LogLevel::Normal);                      \
 	} while (0)
 
-#define ERR(message)                                                                                          \
-	do                                                                                                        \
-	{                                                                                                         \
-		std::ostringstream logMessageStream;                                                                  \
-		logMessageStream << Log::GetLogLineHeader("ERROR", __func__, __LINE__) << message << '\n';            \
-		const std::string logMessage = logMessageStream.str();                                                \
-		std::cerr << (std::string(Log::ColorRed) + logMessage + std::string(Log::ColorNormal)) << std::flush; \
-		Log::WriteToLogFile(logMessage);                                                                      \
+#define PRINT_VERBOSE(message)                                                                                 \
+	do                                                                                                         \
+	{                                                                                                          \
+		std::ostringstream logMessageStream;                                                                   \
+		logMessageStream << Log::GetLogLineHeader(Log::LogType::Print, __func__, __LINE__) << message << '\n'; \
+		Log::Logging(logMessageStream.str(), Log::LogType::Print, Log::LogLevel::Verbose);                     \
+	} while (0)
+
+#define ERR(message)                                                                                           \
+	do                                                                                                         \
+	{                                                                                                          \
+		std::ostringstream logMessageStream;                                                                   \
+		logMessageStream << Log::GetLogLineHeader(Log::LogType::Error, __func__, __LINE__) << message << '\n'; \
+		Log::Logging(logMessageStream.str(), Log::LogType::Error, Log::LogLevel::Normal);                      \
 	} while (0)
 
 #define WARN(message)                                                                                            \
 	do                                                                                                           \
 	{                                                                                                            \
 		std::ostringstream logMessageStream;                                                                     \
-		logMessageStream << Log::GetLogLineHeader("WARNING", __func__, __LINE__) << message << '\n';             \
-		const std::string logMessage = logMessageStream.str();                                                   \
-		std::cerr << (std::string(Log::ColorYellow) + logMessage + std::string(Log::ColorNormal)) << std::flush; \
-		Log::WriteToLogFile(logMessage);                                                                         \
+		logMessageStream << Log::GetLogLineHeader(Log::LogType::Warning, __func__, __LINE__) << message << '\n'; \
+		Log::Logging(logMessageStream.str(), Log::LogType::Warning, Log::LogLevel::Normal);                      \
 	} while (0)
 
-#define SUCCESS(message)                                                                                        \
-	do                                                                                                          \
-	{                                                                                                           \
-		std::ostringstream logMessageStream;                                                                    \
-		logMessageStream << Log::GetLogLineHeader("SUCCESS", __func__, __LINE__) << message << '\n';            \
-		const std::string logMessage = logMessageStream.str();                                                  \
-		std::cerr << (std::string(Log::ColorGreen) + logMessage + std::string(Log::ColorNormal)) << std::flush; \
-		Log::WriteToLogFile(logMessage);                                                                        \
+#define SUCCESS(message)                                                                                         \
+	do                                                                                                           \
+	{                                                                                                            \
+		std::ostringstream logMessageStream;                                                                     \
+		logMessageStream << Log::GetLogLineHeader(Log::LogType::Success, __func__, __LINE__) << message << '\n'; \
+		Log::Logging(logMessageStream.str(), Log::LogType::Success, Log::LogLevel::Normal);                      \
 	} while (0)

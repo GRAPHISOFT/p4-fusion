@@ -6,7 +6,10 @@
  */
 #include "log.h"
 
-#include <mutex>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
 #include <thread>
 #include <unordered_map>
 
@@ -41,13 +44,51 @@ bool Log::StartLogFile(const std::string& filePath)
 	return logFileStream.is_open();
 }
 
-void Log::WriteToLogFile(const std::string& message)
+void Log::Logging(const std::string& message, Log::LogType logType, Log::LogLevel logLevel)
 {
-	std::lock_guard<std::mutex> lock(logFileStreamMutex);
-	if (logFileStream.is_open())
+	switch (logType)
 	{
-		logFileStream << message << std::flush;
+	case LogType::Error:
+		std::cerr << (std::string(ColorRed) + message + std::string(ColorNormal)) << std::flush;
+		break;
+	case LogType::Warning:
+		std::cerr << (std::string(ColorYellow) + message + std::string(ColorNormal)) << std::flush;
+		break;
+	case LogType::Success:
+		std::cerr << (std::string(ColorGreen) + message + std::string(ColorNormal)) << std::flush;
+		break;
+	case LogType::Print:
+		if (logLevel <= CurrentLogLevel)
+		{
+			std::cout << message << std::flush;
+		}
+		break;
 	}
+
+	WriteToLogFile(message);
+}
+
+std::string Log::GetLogLineHeader(Log::LogType logType, const char* func, int line)
+{
+	const char* logTypeStr = "";
+
+	switch (logType)
+	{
+	case LogType::Print:
+		logTypeStr = "PRINT";
+		break;
+	case LogType::Error:
+		logTypeStr = "ERROR";
+		break;
+	case LogType::Warning:
+		logTypeStr = "WARNING";
+		break;
+	case LogType::Success:
+		logTypeStr = "SUCCESS";
+		break;
+	}
+
+	return "[ " + Timestamp() + " " + ThreadName() + " " + logTypeStr + " @ " + func + ":" + std::to_string(line) + " ] ";
 }
 
 std::string Log::Timestamp()
@@ -80,7 +121,11 @@ std::string Log::ThreadName()
 	return "Thread_" + (it->second == 0 ? "Main" : std::to_string(it->second));
 }
 
-std::string Log::GetLogLineHeader(const char* logType, const char* func, int line)
+void Log::WriteToLogFile(const std::string& message)
 {
-	return "[ " + Timestamp() + " " + ThreadName() + " " + logType + " @ " + func + ":" + std::to_string(line) + " ] ";
+	std::lock_guard<std::mutex> lock(logFileStreamMutex);
+	if (logFileStream.is_open())
+	{
+		logFileStream << message << std::flush;
+	}
 }
