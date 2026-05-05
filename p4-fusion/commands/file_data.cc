@@ -120,7 +120,7 @@ void FileDataStore::SetAction(std::string fileAction)
 		//   so even though this causes a delete to happen,
 		//   as a source, there isn't something merging into this
 		//   change.
-		isIntegrated = false;
+		isIntegrated = true;
 		isDeleted = true;
 		break;
 
