@@ -41,7 +41,7 @@ public:
 	static bool StartLogFile(const std::string& filePath);
 
 	/// Thread-safe. Outputs to stderr or stdout based on LogType, and writes to the log file.
-	static void Logging(const std::string& message, LogType logType, LogLevel logLevel);
+	static void DoLog(const std::string& message, LogType logType, LogLevel logLevel);
 
 	/// Thread-safe.
 	static std::string GetLogLineHeader(LogType logType, const char* func, int line);
@@ -72,7 +72,7 @@ private:
 	{                                                                                                          \
 		std::ostringstream logMessageStream;                                                                   \
 		logMessageStream << Log::GetLogLineHeader(Log::LogType::Print, __func__, __LINE__) << message << '\n'; \
-		Log::Logging(logMessageStream.str(), Log::LogType::Print, Log::LogLevel::Normal);                      \
+		Log::DoLog(logMessageStream.str(), Log::LogType::Print, Log::LogLevel::Normal);                        \
 	} while (0)
 
 #define PRINT_VERBOSE(message)                                                                                 \
@@ -80,7 +80,7 @@ private:
 	{                                                                                                          \
 		std::ostringstream logMessageStream;                                                                   \
 		logMessageStream << Log::GetLogLineHeader(Log::LogType::Print, __func__, __LINE__) << message << '\n'; \
-		Log::Logging(logMessageStream.str(), Log::LogType::Print, Log::LogLevel::Verbose);                     \
+		Log::DoLog(logMessageStream.str(), Log::LogType::Print, Log::LogLevel::Verbose);                       \
 	} while (0)
 
 #define ERR(message)                                                                                           \
@@ -88,7 +88,7 @@ private:
 	{                                                                                                          \
 		std::ostringstream logMessageStream;                                                                   \
 		logMessageStream << Log::GetLogLineHeader(Log::LogType::Error, __func__, __LINE__) << message << '\n'; \
-		Log::Logging(logMessageStream.str(), Log::LogType::Error, Log::LogLevel::Normal);                      \
+		Log::DoLog(logMessageStream.str(), Log::LogType::Error, Log::LogLevel::Normal);                        \
 	} while (0)
 
 #define WARN(message)                                                                                            \
@@ -96,7 +96,7 @@ private:
 	{                                                                                                            \
 		std::ostringstream logMessageStream;                                                                     \
 		logMessageStream << Log::GetLogLineHeader(Log::LogType::Warning, __func__, __LINE__) << message << '\n'; \
-		Log::Logging(logMessageStream.str(), Log::LogType::Warning, Log::LogLevel::Normal);                      \
+		Log::DoLog(logMessageStream.str(), Log::LogType::Warning, Log::LogLevel::Normal);                        \
 	} while (0)
 
 #define SUCCESS(message)                                                                                         \
@@ -104,5 +104,5 @@ private:
 	{                                                                                                            \
 		std::ostringstream logMessageStream;                                                                     \
 		logMessageStream << Log::GetLogLineHeader(Log::LogType::Success, __func__, __LINE__) << message << '\n'; \
-		Log::Logging(logMessageStream.str(), Log::LogType::Success, Log::LogLevel::Normal);                      \
+		Log::DoLog(logMessageStream.str(), Log::LogType::Success, Log::LogLevel::Normal);                        \
 	} while (0)

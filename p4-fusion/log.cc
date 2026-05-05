@@ -50,7 +50,7 @@ bool Log::StartLogFile(const std::string& filePath)
 	return logFileStream.is_open();
 }
 
-void Log::Logging(const std::string& message, Log::LogType logType, Log::LogLevel logLevel)
+void Log::DoLog(const std::string& message, Log::LogType logType, Log::LogLevel logLevel)
 {
 	switch (logType)
 	{
