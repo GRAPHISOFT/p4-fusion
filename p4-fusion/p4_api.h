@@ -103,6 +103,8 @@ inline std::unique_ptr<T> P4API::RunEx(const char* command, const std::vector<st
 		argsCharArray.push_back((char*)arg.c_str());
 	}
 
+	PRINT_VERBOSE("Running p4 command: " << command << argsString);
+
 	std::unique_ptr<T> clientUser = std::unique_ptr<T>(new T());
 
 	m_ClientAPI.SetArgv(argsCharArray.size(), argsCharArray.data());
@@ -151,15 +153,13 @@ inline std::unique_ptr<T> P4API::RunEx(const char* command, const std::vector<st
 		int refreshRetries = CommandRetries;
 		while (refreshRetries > 0)
 		{
-			WARN("Trying to refresh the connection due to age (" << m_Usage << " > " << CommandRefreshThreshold << ").");
 			if (Reinitialize())
 			{
-				SUCCESS("Connection was refreshed");
+				PRINT_VERBOSE("Perforce connection was refreshed");
 				break;
 			}
 			ERR("Could not refresh connection due to old age. Retrying in 5 seconds");
 			std::this_thread::sleep_for(std::chrono::seconds(5));
-
 			refreshRetries--;
 		}
 
@@ -169,6 +169,8 @@ inline std::unique_ptr<T> P4API::RunEx(const char* command, const std::vector<st
 			std::exit(1);
 		}
 	}
+
+	PRINT_VERBOSE("Done p4 command");
 
 	return clientUser;
 }

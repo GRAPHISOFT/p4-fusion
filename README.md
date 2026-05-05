@@ -46,6 +46,9 @@ These execution times are expected to scale as expected with larger depots (mill
 --includeBinaries [Optional, Default is false]
         Do not discard binary files while downloading changelists.
 
+--logFilePath [Optional, Default is empty]
+        Path to a log file. When set, all log output is also written to this file. Logging into file always uses verbose mode.
+
 --lookAhead [Required]
         How many CLs in the future, at most, shall we keep downloaded by the time it is to commit them?
 
@@ -84,6 +87,9 @@ These execution times are expected to scale as expected with larger depots (mill
 
 --user [Required]
         Specify which P4USER to use. Please ensure that the user is logged in.
+
+--verbose [Optional, Default is false]
+        Enable verbose logging for standard output.
 
 --config [Optional, Default is empty]
         Path to a file that can contain additional command line arguments.

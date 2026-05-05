@@ -85,6 +85,8 @@ int Main(int argc, char** argv)
 	                                                                       "Normally this results in them being ignored instead of committed. "
 	                                                                       "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing."
 	                                                                       "Can be specified more than once.");
+	Arguments::GetSingleton()->OptionalParameter("--verbose", "false", "Enable verbose logging.");
+	Arguments::GetSingleton()->OptionalParameter("--logFilePath", "", "Path to a log file. When set, all log output is also written to this file. Logging into file always uses verbose mode.");
 
 	PRINT("p4-fusion " P4_FUSION_VERSION);
 
@@ -99,6 +101,22 @@ int Main(int argc, char** argv)
 	if (noColor)
 	{
 		Log::DisableColoredOutput();
+	}
+
+	const bool verbose = Arguments::GetSingleton()->GetVerbose() != "false";
+	if (verbose)
+	{
+		Log::SetLogLevel(Log::LogLevel::Verbose);
+	}
+
+	const std::string logFilePath = Arguments::GetSingleton()->GetLogFilePath();
+	if (!logFilePath.empty())
+	{
+		if (!Log::StartLogFile(logFilePath))
+		{
+			ERR("Failed to open log file: " << logFilePath);
+			return 1;
+		}
 	}
 
 	const bool noMerge = Arguments::GetSingleton()->GetNoMerge() != "false";
@@ -572,6 +590,8 @@ int Main(int argc, char** argv)
 				depotPathString += branchGroup.depotBranchPath;
 			}
 
+			PRINT_VERBOSE("Running git commit based on " << cl.number << " into " << branchGroup.targetBranch << " branch");
+
 			std::string commitSHA = git.Commit(depotPathString,
 			    cl.number,
 			    fullName,
@@ -581,8 +601,9 @@ int Main(int argc, char** argv)
 			    cl.timestamp,
 			    mergeFrom);
 
+			PRINT_VERBOSE("Done git command");
+
 			// For scripting/testing purposes...
-			PRINT("COMMIT:" << commitSHA << ":" << cl.number << ":" << branchGroup.targetBranch << ":");
 			SUCCESS(
 			    "CL " << cl.number << " --> Commit " << commitSHA
 			          << " with " << branchGroup.files.size() << " files"
@@ -598,8 +619,8 @@ int Main(int argc, char** argv)
 		    "CL " << cl.number << " with "
 		          << cl.changedFileGroups->totalFileCount << " files (" << i + 1 << "/" << changes.size()
 		          << "|" << lastDownloadedCL - (long long)i
-		          << "). Elapsed " << commitTimer.GetTimeS() / 60.0f << " mins. "
-		          << ((commitTimer.GetTimeS() / 60.0f) / (float)(i + 1)) * (changes.size() - i - 1) << " mins left.");
+		          << "). Elapsed " << commitTimer.GetTimeS() / 60.0f << " mins. (Estimated "
+		          << ((commitTimer.GetTimeS() / 60.0f) / (float)(i + 1)) * (changes.size() - i - 1) << " mins left.)");
 		// Clear out finished changelist.
 		cl.Clear();
 
