@@ -58,7 +58,7 @@ public:
 	std::string GetFlushRate() const { return GetParameter("--flushRate"); };
 	std::string GetNoColor() const { return GetParameter("--noColor"); };
 	std::string GetNoMerge() const { return GetParameter("--noMerge"); };
-	std::string GetGroupMerges() const { return GetParameter("--groupMerges"); };
+	std::string GetMergeDeletes() const { return GetParameter("--mergeDeletes"); };
 	std::string GetStreamMappings() const { return GetParameter("--streamMappings"); };
 	std::vector<std::string> GetBranches() const { return GetParameterList("--branch"); };
 	std::vector<std::string> GetExcludes() const { return GetParameterList("--exclude"); };

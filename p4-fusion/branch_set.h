@@ -70,7 +70,7 @@ private:
 	GitAPI& m_gitApi;
 	// Technically, these should all be const.
 	const bool m_includeBinaries;
-	const bool m_groupMerges;
+	const bool m_mergeDeletes;
 	const std::vector<std::regex> m_excludes;
 	mutable std::unordered_set<std::string> m_excludedFileDirs;
 	std::string m_basePath;
@@ -96,7 +96,7 @@ public:
 	    const std::vector<StreamResult::MappingData>& mappings,
 	    const std::vector<StreamResult::MappingData>& exclusions,
 	    const bool includeBinaries,
-	    const bool groupMerges,
+	    const bool mergeDeletes,
 	    const std::vector<std::regex>& excludes,
 	    const std::vector<std::string>& overrideToTextSpecs,
 	    const std::vector<std::string>& overrideToBinarySpecs);

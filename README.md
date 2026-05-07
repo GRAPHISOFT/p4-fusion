@@ -61,8 +61,8 @@ These execution times are expected to scale as expected with larger depots (mill
 --noMerge [Optional, Default is false]
         Disable performing a Git merge when a Perforce branch integrates (or copies, etc) into another branch.
 
---groupMerges [Optional, Default is false]
-        When enabled, all files from a single Perforce changelist that target the same branch are consolidated into a single Git commit, even if they come from multiple integrations or include direct changes.
+--mergeDeletes [Optional, Default is false]
+        When enabled, files that are deleted or moved on a target branch as part of an integration changelist are folded into the merge commit rather than being placed in a separate non-merge commit. Only applies when exactly one source branch is involved; if multiple source branches target the same branch in one changelist, the deletes remain in their own commit.
 
 --path [Required]
         P4 depot path to convert to a Git repo.  If used with '--branch', this is the base path for the branches.
