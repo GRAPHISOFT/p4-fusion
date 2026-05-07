@@ -235,49 +235,44 @@ void branchIntegrationMap::addMerge(const std::string& sourceBranch, const std::
 
 void branchIntegrationMap::consolidateTargetGroups()
 {
-	// Consolidate all groups that share the same target branch into a single group.
-	// This ensures a single P4 submit always produces a single Git commit per target
-	// branch, even when the submit contains integrations from multiple source branches
-	// plus direct changes on the target.
+	// Fold target-only groups (e.g. move/deletes on the target side of an integration)
+	// into a merge group that shares the same target branch.  This ensures these files
+	// appear in the merge commit rather than a separate non-merge commit.
 	//
-	// The first group with a source branch becomes the keeper (its sourceBranch is
-	// used as the merge parent).  If no group has a source, the first group is kept.
+	// Only consolidate when exactly one merge group exists for a given target branch.
+	// If multiple merge groups exist (integrations from different source branches),
+	// the target-only files are left as their own commit to avoid associating them
+	// with an arbitrary merge parent.
 
-	// Map targetBranch -> index of the keeper group.
-	std::unordered_map<std::string, size_t> targetToKeeper;
-	std::vector<size_t> groupsToRemove;
-
+	// First pass: count merge groups per target branch and record their index.
+	std::unordered_map<std::string, std::vector<size_t>> targetMergeGroups;
 	for (size_t i = 0; i < branchGroups.size(); i++)
 	{
 		BranchedFileGroup& group = branchGroups[i];
-		if (group.targetBranch.empty())
+		if (group.hasSource && !group.targetBranch.empty())
 		{
-			// Non-branching mode group; nothing to consolidate.
+			targetMergeGroups[group.targetBranch].push_back(i);
+		}
+	}
+
+	// Second pass: fold target-only groups into merge groups where unambiguous.
+	std::vector<size_t> groupsToRemove;
+	for (size_t i = 0; i < branchGroups.size(); i++)
+	{
+		BranchedFileGroup& group = branchGroups[i];
+		if (group.hasSource || group.targetBranch.empty())
+		{
 			continue;
 		}
-
-		auto it = targetToKeeper.find(group.targetBranch);
-		if (it == targetToKeeper.end())
+		// This is a target-only group.  Only fold if exactly one merge group
+		// exists for this target branch.
+		auto it = targetMergeGroups.find(group.targetBranch);
+		if (it != targetMergeGroups.end() && it->second.size() == 1)
 		{
-			// First group for this target — it becomes the keeper.
-			targetToKeeper[group.targetBranch] = i;
-		}
-		else
-		{
-			// Fold this group into the keeper.
-			BranchedFileGroup& keeper = branchGroups[it->second];
-
-			// If the keeper has no source but this group does, adopt its source.
-			if (!keeper.hasSource && group.hasSource)
-			{
-				keeper.sourceBranch = group.sourceBranch;
-				keeper.hasSource = true;
-			}
-
-			// Move files.
+			BranchedFileGroup& mergeGroup = branchGroups[it->second[0]];
 			for (auto& file : group.files)
 			{
-				keeper.files.push_back(file);
+				mergeGroup.files.push_back(file);
 			}
 			group.files.clear();
 			groupsToRemove.push_back(i);
