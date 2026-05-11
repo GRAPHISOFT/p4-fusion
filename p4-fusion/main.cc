@@ -626,7 +626,7 @@ int Main(int argc, char** argv)
 		// Clear out finished changelist.
 		cl.Clear();
 
-		bool incrementalRepack = ((i + 1) % fullRepackRate != 0) && (i != (changes.size() - 1));
+		bool incrementalRepack = (fullRepackRate == 0) || (((i + 1) % fullRepackRate != 0) && (i != (changes.size() - 1)));
 		if (!incrementalRepack)
 		{
 			PRINT_VERBOSE("Performing full git repack."); // slower but pack everything into one pack file
