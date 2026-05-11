@@ -639,6 +639,10 @@ int Main(int argc, char** argv)
 		{
 			PRINT_VERBOSE("Git repack command succeeded.");
 		}
+		else
+		{
+			WARN("Git repack command failed, but continuing conversion.");
+		}
 
 		// Start downloading the CL chronologically after the last CL that was previously downloaded, if there's still some left
 		if (lastDownloadedCL + 1 < changes.size())

@@ -359,7 +359,7 @@ void GitAPI::RemoveFileFromIndex(const std::string& relativePath)
 	GIT2(git_index_remove_bypath(m_Index, pathNFC));
 }
 
-std::tuple<int, std::string> runCommand(const std::string& command)
+static std::tuple<int, std::string> runCommand(const std::string& command)
 {
 	std::string output;
 
@@ -398,20 +398,28 @@ bool GitAPI::RepackWithSystemCommand(const std::string& repoPath, bool increment
 	command += " -q"; // quiet mode, without process feedback
 	command += " 2>&1";
 
-	auto commandResult = runCommand(command);
-	const auto& exitCode = std::get<0>(commandResult);
-	if (exitCode != 0)
+	try
 	{
-		const auto& output = std::get<1>(commandResult);
-		ERR("Git repack command failed with exit code: " << exitCode << std::endl
-		                                                 << "output: " << output);
+		auto commandResult = runCommand(command);
+		const auto& exitCode = std::get<0>(commandResult);
+		if (exitCode != 0)
+		{
+			const auto& output = std::get<1>(commandResult);
+			ERR("Git repack command failed with exit code: " << exitCode << std::endl
+			                                                 << "output: " << output);
+			return false;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		ERR("Git repack command failed: " << e.what());
 		return false;
 	}
 
 	/* After repack, tell libgit2 to re-scan the object store */
 	git_odb* odb;
-	git_repository_odb(&odb, m_Repo);
-	git_odb_refresh(odb);
+	GIT2(git_repository_odb(&odb, m_Repo));
+	GIT2(git_odb_refresh(odb));
 	git_odb_free(odb);
 
 	return true;
