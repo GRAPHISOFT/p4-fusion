@@ -8,8 +8,12 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 
-#include <cstring>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <stdexcept>
+#include <tuple>
+#include <sys/wait.h>
 
 #include "git2.h"
 #include "git2/sys/repository.h"
