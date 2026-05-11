@@ -61,6 +61,7 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->OptionalParameter("--fsyncEnable", "false", "Enable fsync() while writing objects to disk to ensure they get written to permanent storage immediately instead of being cached. This is to mitigate data loss in events of hardware failure.");
 	Arguments::GetSingleton()->OptionalParameter("--includeBinaries", "false", "Do not discard binary files while downloading changelists.");
 	Arguments::GetSingleton()->OptionalParameter("--flushRate", "1000", "Rate at which profiling data is flushed on the disk.");
+	Arguments::GetSingleton()->OptionalParameter("--fullRepackRate", "1000", "How often (in number of CLs) to perform a full git repack instead of an incremental one. Full repack is slower but consolidates all pack files.");
 	Arguments::GetSingleton()->OptionalParameter("--noColor", "false", "Disable colored output.");
 	Arguments::GetSingleton()->OptionalParameterList("--exclude", "A regex used to exclude files from the conversion. Can be specified more than once.\n"
 	                                                              "\tExamples:\n"
@@ -127,6 +128,7 @@ int Main(int argc, char** argv)
 	const bool includeBinaries = Arguments::GetSingleton()->GetIncludeBinaries() != "false";
 	const int maxChanges = std::atoi(Arguments::GetSingleton()->GetMaxChanges().c_str());
 	const int flushRate = std::atoi(Arguments::GetSingleton()->GetFlushRate().c_str());
+	const int fullRepackRate = std::atoi(Arguments::GetSingleton()->GetFullRepackRate().c_str());
 	const std::vector<std::string> branchNames = Arguments::GetSingleton()->GetBranches();
 	const std::vector<std::string> excludesStrs = Arguments::GetSingleton()->GetExcludes();
 	const std::string excludeLogPath = Arguments::GetSingleton()->GetExcludeLogPath();
@@ -624,19 +626,20 @@ int Main(int argc, char** argv)
 		// Clear out finished changelist.
 		cl.Clear();
 
-		bool incrementalRepack = (i + 1) % 100 != 0;
+		bool incrementalRepack = ((i + 1) % fullRepackRate != 0) && (i != (changes.size() - 1));
 		if (!incrementalRepack)
 		{
-			PRINT("Performing full git repack.");	// slower but pack everything into one pack file
-		} else
+			PRINT_VERBOSE("Performing full git repack."); // slower but pack everything into one pack file
+		}
+		else
 		{
-			PRINT("Performing incremental git repack.");	// creates pack file for every commit
+			PRINT_VERBOSE("Performing incremental git repack."); // creates pack file for every commit
 		}
 		if (git.RepackWithSystemCommand(srcPath, incrementalRepack))
 		{
-			SUCCESS("Git repack command succeeded.");
+			PRINT_VERBOSE("Git repack command succeeded.");
 		}
-		
+
 		// Start downloading the CL chronologically after the last CL that was previously downloaded, if there's still some left
 		if (lastDownloadedCL + 1 < changes.size())
 		{

@@ -380,7 +380,7 @@ std::tuple<int, std::string> runCommand(const std::string& command)
 	return { exitCode, output };
 }
 
-bool GitAPI::RepackWithSystemCommand (const std::string& repoPath, bool incrementalRepack)
+bool GitAPI::RepackWithSystemCommand(const std::string& repoPath, bool incrementalRepack)
 {
 	std::string command;
 	command += "git -C \"";
@@ -390,22 +390,24 @@ bool GitAPI::RepackWithSystemCommand (const std::string& repoPath, bool incremen
 	{
 		command += " -a";
 	}
-	command += " -d";	// remove redundant packs after repack
-	command += " -q";	// quiet mode, without process feedback
+	command += " -d"; // remove redundant packs after repack
+	command += " -q"; // quiet mode, without process feedback
 	command += " 2>&1";
 
 	auto commandResult = runCommand(command);
 	const auto& exitCode = std::get<0>(commandResult);
-	if (exitCode != 0) {
+	if (exitCode != 0)
+	{
 		const auto& output = std::get<1>(commandResult);
-		ERR("Git repack command failed with exit code: " << exitCode << std::endl << "output: " << output);
+		ERR("Git repack command failed with exit code: " << exitCode << std::endl
+		                                                 << "output: " << output);
 		return false;
 	}
 
 	/* After repack, tell libgit2 to re-scan the object store */
-	git_odb *odb;
+	git_odb* odb;
 	git_repository_odb(&odb, m_Repo);
-	git_odb_refresh(odb); 
+	git_odb_refresh(odb);
 	git_odb_free(odb);
 
 	return true;
