@@ -624,6 +624,19 @@ int Main(int argc, char** argv)
 		// Clear out finished changelist.
 		cl.Clear();
 
+		bool incrementalRepack = (i + 1) % 100 != 0;
+		if (!incrementalRepack)
+		{
+			PRINT("Performing full git repack.");	// slower but pack everything into one pack file
+		} else
+		{
+			PRINT("Performing incremental git repack.");	// creates pack file for every commit
+		}
+		if (git.RepackWithSystemCommand(srcPath, incrementalRepack))
+		{
+			SUCCESS("Git repack command succeeded.");
+		}
+		
 		// Start downloading the CL chronologically after the last CL that was previously downloaded, if there's still some left
 		if (lastDownloadedCL + 1 < changes.size())
 		{

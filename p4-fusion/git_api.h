@@ -48,6 +48,8 @@ public:
 	void AddFileToIndex(const std::string& relativePath, const std::vector<char>& contents, const bool plusx);
 	void RemoveFileFromIndex(const std::string& relativePath);
 
+	bool RepackWithSystemCommand(const std::string& repoPath, bool incrementalRepack);
+
 	std::string Commit(
 	    const std::string& depotPath,
 	    const std::string& cl,

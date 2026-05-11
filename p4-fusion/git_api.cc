@@ -355,6 +355,62 @@ void GitAPI::RemoveFileFromIndex(const std::string& relativePath)
 	GIT2(git_index_remove_bypath(m_Index, pathNFC));
 }
 
+std::tuple<int, std::string> runCommand(const std::string& command)
+{
+	std::string output;
+
+	FILE* pipe = popen(command.c_str(), "r");
+	if (!pipe)
+		throw std::runtime_error("popen() failed!");
+
+	char buffer[256];
+	while (fgets(buffer, sizeof(buffer), pipe) != nullptr)
+		output += buffer;
+
+	int exitCode = pclose(pipe);
+
+#ifndef _WIN32
+	// On POSIX, pclose() returns a wait-status — extract the actual exit code
+	if (WIFEXITED(exitCode))
+		exitCode = WEXITSTATUS(exitCode);
+	else
+		exitCode = -1; // terminated abnormally (e.g. killed by signal)
+#endif
+
+	return { exitCode, output };
+}
+
+bool GitAPI::RepackWithSystemCommand (const std::string& repoPath, bool incrementalRepack)
+{
+	std::string command;
+	command += "git -C \"";
+	command += repoPath;
+	command += "\" repack";
+	if (!incrementalRepack)
+	{
+		command += " -a";
+	}
+	command += " -d";	// remove redundant packs after repack
+	command += " -q";	// quiet mode, without process feedback
+	command += " 2>&1";
+
+	auto commandResult = runCommand(command);
+	const auto& exitCode = std::get<0>(commandResult);
+	if (exitCode != 0) {
+		const auto& output = std::get<1>(commandResult);
+		ERR("Git repack command failed with exit code: " << exitCode << std::endl << "output: " << output);
+		return false;
+	}
+
+	/* After repack, tell libgit2 to re-scan the object store */
+	git_odb *odb;
+	git_repository_odb(&odb, m_Repo);
+	git_odb_refresh(odb); 
+	git_odb_free(odb);
+
+	return true;
+}
+
 std::string GitAPI::Commit(
     const std::string& depotPath,
     const std::string& cl,
