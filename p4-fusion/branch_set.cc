@@ -185,8 +185,16 @@ struct branchIntegrationMap
 	void addMerge(const std::string& sourceBranch, const std::string& targetBranch, const std::string& depotBranchPath, const FileData& rev);
 	void addTarget(const std::string& targetBranch, const std::string& depotBranchPath, const FileData& rev);
 
+	// Fold target-only groups into merge groups that share the same target branch,
+	// so that all files from an integration changelist end up in a single merge commit.
+	void consolidateTargetGroups();
+
 	// note: not const, because it cleans out the branchGroups.
-	std::unique_ptr<ChangedFileGroups> createChangedFileGroups() { return std::unique_ptr<ChangedFileGroups>(new ChangedFileGroups(branchGroups, fileCount)); };
+	std::unique_ptr<ChangedFileGroups> createChangedFileGroups()
+	{
+		consolidateTargetGroups();
+		return std::unique_ptr<ChangedFileGroups>(new ChangedFileGroups(branchGroups, fileCount));
+	};
 };
 
 void branchIntegrationMap::addTarget(const std::string& targetBranch, const std::string& depotBranchPath, const FileData& fileData)
@@ -218,6 +226,49 @@ void branchIntegrationMap::addMerge(const std::string& sourceBranch, const std::
 		branchGroups.at(entry->second).files.push_back(fileData);
 	}
 	fileCount++;
+}
+
+void branchIntegrationMap::consolidateTargetGroups()
+{
+	// For each target-only group (no source branch), check if there's a merge group
+	// with the same target branch. If so, move the files into that merge group and
+	// mark the target-only group for removal. This ensures that all files from an
+	// integration changelist (including move/deletes on the target side) appear in
+	// a single merge commit.
+	std::vector<size_t> groupsToRemove;
+	for (size_t i = 0; i < branchGroups.size(); i++)
+	{
+		BranchedFileGroup& group = branchGroups[i];
+		if (group.hasSource || group.targetBranch.empty())
+		{
+			// This is already a merge group, or has no target branch. Skip.
+			continue;
+		}
+		// This is a target-only group. Look for a merge group with the same target.
+		for (size_t j = 0; j < branchGroups.size(); j++)
+		{
+			if (i == j)
+				continue;
+			BranchedFileGroup& mergeGroup = branchGroups[j];
+			if (mergeGroup.hasSource && mergeGroup.targetBranch == group.targetBranch)
+			{
+				// Found a merge group for the same target branch.
+				// Move files from target-only group into the merge group.
+				for (auto& file : group.files)
+				{
+					mergeGroup.files.push_back(file);
+				}
+				group.files.clear();
+				groupsToRemove.push_back(i);
+				break;
+			}
+		}
+	}
+	// Remove empty groups in reverse order to preserve indices.
+	for (auto it = groupsToRemove.rbegin(); it != groupsToRemove.rend(); ++it)
+	{
+		branchGroups.erase(branchGroups.begin() + *it);
+	}
 }
 
 // Post condition: all returned FileData (e.g. filtered for git commit) have the relativePath set.
