@@ -60,6 +60,7 @@ public:
 	std::string GetVerbose() const { return GetParameter("--verbose"); };
 	std::string GetLogFilePath() const { return GetParameter("--logFilePath"); };
 	std::string GetNoMerge() const { return GetParameter("--noMerge"); };
+	std::string GetGroupMerges() const { return GetParameter("--groupMerges"); };
 	std::string GetStreamMappings() const { return GetParameter("--streamMappings"); };
 	std::vector<std::string> GetBranches() const { return GetParameterList("--branch"); };
 	std::vector<std::string> GetExcludes() const { return GetParameterList("--exclude"); };
