@@ -53,7 +53,7 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->RequiredParameter("--lookAhead", "How many CLs in the future, at most, shall we keep downloaded by the time it is to commit them?");
 	Arguments::GetSingleton()->OptionalParameterList("--branch", "A branch to migrate under the depot path.  May be specified more than once.  If at least one is given and the noMerge option is false, then the Git repository will include merges between branches in the history.  You may use the formatting 'depot/path:git-alias', separating the Perforce branch sub-path from the git alias name by a ':'; if the depot path contains a ':', then you must provide the git branch alias.");
 	Arguments::GetSingleton()->OptionalParameter("--noMerge", "false", "Disable performing a Git merge when a Perforce branch integrates (or copies, etc) into another branch.");
-	Arguments::GetSingleton()->OptionalParameter("--groupMerges", "false", "When enabled, all files from a single Perforce changelist that target the same branch are consolidated into a single Git commit, even if they come from multiple integrations or include direct changes.");
+	Arguments::GetSingleton()->OptionalParameter("--mergeDeletes", "false", "When enabled, files that are deleted or moved on a target branch as part of an integration changelist are folded into the merge commit rather than being placed in a separate non-merge commit.");
 	Arguments::GetSingleton()->OptionalParameter("--networkThreads", std::to_string(std::thread::hardware_concurrency()), "Specify the number of threads in the threadpool for running network calls. Defaults to the number of logical CPUs.");
 	Arguments::GetSingleton()->OptionalParameter("--printBatch", "1", "Specify the p4 print batch size.");
 	Arguments::GetSingleton()->OptionalParameter("--maxChanges", "-1", "Specify the max number of changelists which should be processed in a single run. -1 signifies unlimited range.");
@@ -121,7 +121,7 @@ int Main(int argc, char** argv)
 	}
 
 	const bool noMerge = Arguments::GetSingleton()->GetNoMerge() != "false";
-	const bool groupMerges = Arguments::GetSingleton()->GetGroupMerges() != "false";
+	const bool mergeDeletes = Arguments::GetSingleton()->GetMergeDeletes() != "false";
 
 	const std::string depotPath = Arguments::GetSingleton()->GetDepotPath();
 	const std::string srcPath = Arguments::GetSingleton()->GetSourcePath();
@@ -329,7 +329,7 @@ int Main(int argc, char** argv)
 		}
 	}
 
-	BranchSet branchSet(git, P4API::ClientSpec.mapping, depotPath, branchNames, mappings, exclusions, includeBinaries, groupMerges, excludes, overrideToTextSpecs, overrideToBinarySpecs);
+	BranchSet branchSet(git, P4API::ClientSpec.mapping, depotPath, branchNames, mappings, exclusions, includeBinaries, mergeDeletes, excludes, overrideToTextSpecs, overrideToBinarySpecs);
 
 	bool profiling = false;
 #if MTR_ENABLED

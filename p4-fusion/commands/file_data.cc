@@ -116,10 +116,9 @@ void FileDataStore::SetAction(std::string fileAction)
 		break;
 
 	case FileAction::FileIntegrateDelete:
-		// This is the source of the integration,
-		//   so even though this causes a delete to happen,
-		//   as a source, there isn't something merging into this
-		//   change.
+		// This file is being deleted as the result of an integration
+		// ("delete from" in filelog).  It is the target of the integration,
+		// so it should be treated as both a delete and a merge target.
 		isIntegrated = true;
 		isDeleted = true;
 		break;
