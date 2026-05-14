@@ -55,7 +55,22 @@ bool ShouldRetryRequest(CURLcode curl_result, long response_code)
 		}
 	}
 
-	return (response_code < 200 || response_code >= 300);
+	// 2xx -> success, do not retry.
+	if (response_code >= 200 && response_code < 300)
+	{
+		return false;
+	}
+
+	// Only retry on transient server-side / rate-limit responses. Client-side
+	// 4xx errors (e.g. 409 Conflict, 422 Unprocessable, 404) are not transient:
+	// retrying them is wasted work and, combined with same-OID races against
+	// LFS servers, can mask successful concurrent uploads as failures.
+	if (response_code == 408 || response_code == 429 || response_code >= 500)
+	{
+		return true;
+	}
+
+	return false;
 }
 
 struct RequestResult
@@ -65,27 +80,50 @@ struct RequestResult
 	std::string response_body;
 };
 
-// Helper function to perform HTTP requests with retry logic
-RequestResult PerformRequestWithRetry(std::function<RequestResult()> requestFunc)
+// Helper function to perform HTTP requests with retry logic.
+//
+// requestFunc is invoked once per attempt. Between attempts the caller-visible
+// RequestResult is reset, so the response body / status from a failed attempt
+// cannot bleed into the next one. requestFunc must populate `result` from
+// scratch on each call (callers that share a CURL handle and a RequestResult
+// across attempts rely on CURLOPT_WRITEDATA pointing at result.response_body;
+// see SetupRequest -- clearing it here is therefore required).
+//
+// `curl` is optional. When provided, on retry iterations (attempt > 0) we ask
+// libcurl to open a fresh connection instead of reusing a possibly half-closed
+// keep-alive socket. This is cheap and noticeably improves recovery against
+// HTTP/2 servers (e.g. Forgejo) that may have already dropped the prior stream.
+RequestResult PerformRequestWithRetry(CURL* curl, RequestResult* result, std::function<void()> requestFunc)
 {
-	RequestResult result;
-
 	for (size_t attempt = 0; attempt < MaxRetryAttempts; ++attempt)
 	{
-		result = requestFunc();
+		// Clear any leftover state from a previous attempt. WriteCallback
+		// appends to response_body, so without this a retried request would
+		// concatenate partial bodies and corrupt JSON parsing downstream.
+		result->response_body.clear();
+		result->response_code = 0;
+		result->curl_result = CURLE_OK;
 
-		if (!ShouldRetryRequest(result.curl_result, result.response_code))
+		if (curl && attempt > 0)
+		{
+			curl_easy_setopt(curl, CURLOPT_FRESH_CONNECT, 1L);
+			curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1L);
+		}
+
+		requestFunc();
+
+		if (!ShouldRetryRequest(result->curl_result, result->response_code))
 		{
 			break;
 		}
 
-		if (result.curl_result != CURLE_OK)
+		if (result->curl_result != CURLE_OK)
 		{
-			WARN("LFS request failed with curl error " << result.curl_result << ", retrying (attempt " << (attempt + 1) << "/" << MaxRetryAttempts << ")");
+			WARN("LFS request failed with curl error " << result->curl_result << ", retrying (attempt " << (attempt + 1) << "/" << MaxRetryAttempts << ")");
 		}
 		else
 		{
-			WARN("LFS request failed with HTTP status " << result.response_code << " and body " << result.response_body << ", retrying (attempt " << (attempt + 1) << "/" << MaxRetryAttempts << ")");
+			WARN("LFS request failed with HTTP status " << result->response_code << " and body " << result->response_body << ", retrying (attempt " << (attempt + 1) << "/" << MaxRetryAttempts << ")");
 		}
 
 		if (attempt < MaxRetryAttempts - 1)
@@ -95,7 +133,7 @@ RequestResult PerformRequestWithRetry(std::function<RequestResult()> requestFunc
 		}
 	}
 
-	return result;
+	return *result;
 }
 
 class CURLHandle
@@ -178,6 +216,28 @@ void SetupRequest(CURL* curl,
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &pResult->response_body);
 	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(curl, CURLOPT_USERAGENT, GetUserAgent());
+
+	// CURLOPT_NOSIGNAL is mandatory in multi-threaded code. On macOS, the
+	// system libcurl is built against the synchronous resolver which uses
+	// SIGALRM for DNS timeouts; without this option, that signal can be
+	// delivered to the wrong thread and libcurl will longjmp across thread
+	// stacks, which crashes the process.
+	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+
+	// Bound how long a single request can block a worker thread. Without
+	// these, a wedged TCP/TLS connection can hang an LFS upload indefinitely.
+	// CURLOPT_TIMEOUT is intentionally not set: LFS objects can be arbitrarily
+	// large, and the connection / low-speed limits below are sufficient to
+	// detect dead peers.
+	curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 30L);
+	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1L);
+	curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 120L);
+
+	// Reset retry-only options so a reused handle does not stay in fresh-
+	// connect mode forever. PerformRequestWithRetry sets these on attempts
+	// after the first.
+	curl_easy_setopt(curl, CURLOPT_FRESH_CONNECT, 0L);
+	curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 0L);
 }
 
 RequestResult PerformPostRequestWithRetry(CURL* curl,
@@ -190,16 +250,14 @@ RequestResult PerformPostRequestWithRetry(CURL* curl,
 	RequestResult result = {};
 	SetupRequest(curl, url, data, data_size, headers, &result, auth);
 
-	return PerformRequestWithRetry([&]() -> RequestResult
+	return PerformRequestWithRetry(curl, &result, [&]()
 	    {
 		    result.curl_result = curl_easy_perform(curl);
 
 		    if (result.curl_result == CURLE_OK)
 		    {
 			    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &result.response_code);
-		    }
-
-		    return result; });
+		    } });
 }
 
 // Helper function to perform a PUT request with binary data
@@ -213,16 +271,14 @@ RequestResult PerformPutRequestWithRetry(CURL* curl, const std::string& url,
 
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
 
-	return PerformRequestWithRetry([&]() -> RequestResult
+	return PerformRequestWithRetry(curl, &result, [&]()
 	    {
 		    result.curl_result = curl_easy_perform(curl);
 
 		    if (result.curl_result == CURLE_OK)
 		    {
 			    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &result.response_code);
-		    }
-
-		    return result; });
+		    } });
 }
 
 struct BatchResponse
@@ -369,8 +425,13 @@ BatchResponse PerformBatchUploadRequest(const std::string& serverUrl, const Cred
 	return result;
 }
 
-Communicator::UploadResult PerformUpload(const std::string& uploadUrl, const std::vector<char>& fileContents, const std::map<std::string, std::string>& actionHeaders, const Credentials& auth = Credentials())
+Communicator::UploadResult PerformUpload(const std::string& uploadUrl, const std::vector<char>& fileContents, const std::map<std::string, std::string>& actionHeaders, long* outResponseCode, const Credentials& auth = Credentials())
 {
+	if (outResponseCode)
+	{
+		*outResponseCode = 0;
+	}
+
 	// Initialize curl
 	CURLHandle curl;
 	if (!curl)
@@ -399,16 +460,20 @@ Communicator::UploadResult PerformUpload(const std::string& uploadUrl, const std
 	SetupRequest(curl.get(), uploadUrl, fileContents.data(), fileContents.size(), uploadHeaders, &uploadResult, authToUse);
 	curl_easy_setopt(curl.get(), CURLOPT_CUSTOMREQUEST, "PUT");
 
-	uploadResult = PerformRequestWithRetry([&]() -> RequestResult
+	uploadResult = PerformRequestWithRetry(curl.get(), &uploadResult, [&]()
 	    {
 		    uploadResult.curl_result = curl_easy_perform(curl.get());
 		    if (uploadResult.curl_result == CURLE_OK)
 		    {
 			    curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &uploadResult.response_code);
-		    }
-		    return uploadResult; });
+		    } });
 
 	curl_slist_free_all(uploadHeaders);
+
+	if (outResponseCode)
+	{
+		*outResponseCode = uploadResult.response_code;
+	}
 
 	if (uploadResult.curl_result != CURLE_OK)
 	{
@@ -457,14 +522,13 @@ bool PerformVerify(const std::string& verifyUrl, const std::string& oid, size_t 
 
 	RequestResult verifyResult = {};
 	SetupRequest(curl.get(), verifyUrl, verifyPayload.data(), verifyPayload.size(), verifyHeaders, &verifyResult, authToUse);
-	verifyResult = PerformRequestWithRetry([&]() -> RequestResult
+	verifyResult = PerformRequestWithRetry(curl.get(), &verifyResult, [&]()
 	    {
 		    verifyResult.curl_result = curl_easy_perform(curl.get());
 		    if (verifyResult.curl_result == CURLE_OK)
 		    {
 			    curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &verifyResult.response_code);
-		    }
-		    return verifyResult; });
+		    } });
 
 	curl_slist_free_all(verifyHeaders);
 
@@ -483,30 +547,107 @@ Communicator::UploadResult LFSComm::UploadFile(const std::vector<char>& fileCont
 {
 	std::string oid = LFSClient::CalcOID(fileContents);
 
+	// Serialize concurrent uploads of the same OID. Without this, two worker
+	// threads can independently batch-request the same content (e.g. a
+	// repeated build-number file), both be told "needsUpload", and then race
+	// on the PUT. LFS servers commonly answer the loser of the race with a
+	// 4xx, which previously bubbled up as a fatal Error -> std::abort in
+	// ChangeList::DownloadBatch.
+	std::shared_ptr<InFlightUpload> inFlight;
+	std::shared_ptr<InFlightUpload> ourUpload;
+	{
+		std::lock_guard<std::mutex> lock(m_InFlightMutex);
+		auto it = m_InFlightUploads.find(oid);
+		if (it != m_InFlightUploads.end())
+		{
+			inFlight = it->second;
+		}
+		else
+		{
+			ourUpload = std::make_shared<InFlightUpload>();
+			m_InFlightUploads.emplace(oid, ourUpload);
+		}
+	}
+
+	if (inFlight)
+	{
+		std::unique_lock<std::mutex> waitLock(inFlight->mutex);
+		inFlight->cv.wait(waitLock, [&inFlight]()
+		    { return inFlight->done; });
+		// Whatever the first uploader achieved is now on the server (or it
+		// failed and reported Error). Either way the content is no longer in
+		// flight; from this thread's perspective it now exists.
+		if (inFlight->result == UploadResult::Error)
+		{
+			return UploadResult::Error;
+		}
+		return UploadResult::AlreadyExists;
+	}
+
+	UploadResult finalResult = UploadResult::Error;
+	auto announce = [&]()
+	{
+		{
+			std::lock_guard<std::mutex> lk(ourUpload->mutex);
+			ourUpload->result = finalResult;
+			ourUpload->done = true;
+		}
+		ourUpload->cv.notify_all();
+		std::lock_guard<std::mutex> lock(m_InFlightMutex);
+		m_InFlightUploads.erase(oid);
+	};
+
 	auto batchResponse = PerformBatchUploadRequest(m_ServerURL, m_Creds, oid, fileContents.size());
 	if (!batchResponse.success)
 	{
-		return UploadResult::Error;
+		finalResult = UploadResult::Error;
+		announce();
+		return finalResult;
 	}
 
 	if (!batchResponse.needsUpload)
 	{
-		return UploadResult::AlreadyExists;
+		finalResult = UploadResult::AlreadyExists;
+		announce();
+		return finalResult;
 	}
 
-	auto uploadResult = PerformUpload(batchResponse.uploadUrl, fileContents, batchResponse.uploadHeaders, m_Creds);
+	long uploadStatus = 0;
+	auto uploadResult = PerformUpload(batchResponse.uploadUrl, fileContents, batchResponse.uploadHeaders, &uploadStatus, m_Creds);
 	if (uploadResult != UploadResult::Uploaded)
 	{
-		return uploadResult;
+		// If the PUT failed with a 4xx, the object may have just been uploaded
+		// by a different client (or this same process before our local lock
+		// existed). Re-issue the batch request; if the server now reports the
+		// object as present, treat that as success instead of fatally aborting.
+		if (uploadStatus >= 400 && uploadStatus < 500)
+		{
+			auto recheck = PerformBatchUploadRequest(m_ServerURL, m_Creds, oid, fileContents.size());
+			if (recheck.success && !recheck.needsUpload)
+			{
+				WARN("LFS upload PUT returned HTTP " << uploadStatus << " for oid " << oid << ", but server reports object exists; treating as AlreadyExists");
+				finalResult = UploadResult::AlreadyExists;
+				announce();
+				return finalResult;
+			}
+		}
+
+		finalResult = uploadResult;
+		announce();
+		return finalResult;
 	}
 
 	if (!batchResponse.verifyUrl.empty())
 	{
 		if (!PerformVerify(batchResponse.verifyUrl, oid, fileContents.size(), batchResponse.verifyHeaders, m_Creds))
 		{
-			return UploadResult::Error;
+			finalResult = UploadResult::Error;
+			announce();
+			return finalResult;
 		}
 	}
 
-	return UploadResult::Uploaded;
+	finalResult = UploadResult::Uploaded;
+	announce();
+	return finalResult;
 }

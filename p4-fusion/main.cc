@@ -18,6 +18,7 @@
 #include <iterator>
 #include <fstream>
 #include <aws/core/Aws.h>
+#include <curl/curl.h>
 
 #include "common.h"
 
@@ -718,6 +719,28 @@ int main(int argc, char** argv)
 {
 	int exitCode = 0;
 
+	// Initialize libcurl globally before any worker threads are spawned and
+	// before AWS SDK init. libcurl requires curl_global_init to be called once
+	// from a single thread before any other libcurl function; without it, the
+	// implicit init triggered by the first curl_easy_init in a worker thread
+	// is not thread-safe and races between concurrent LFS uploads.
+	{
+		CURLcode curlInit = curl_global_init(CURL_GLOBAL_DEFAULT);
+		if (curlInit != CURLE_OK)
+		{
+			ERR("curl_global_init failed: " << curl_easy_strerror(curlInit));
+			return 1;
+		}
+
+		curl_version_info_data* curlInfo = curl_version_info(CURLVERSION_NOW);
+		if (curlInfo && curlInfo->version)
+		{
+			PRINT("libcurl runtime version: " << curlInfo->version
+			                                  << (curlInfo->ssl_version ? std::string(" ssl=") + curlInfo->ssl_version : std::string())
+			                                  << ((curlInfo->features & CURL_VERSION_ASYNCHDNS) ? " async-dns" : " sync-dns"));
+		}
+	}
+
 	Aws::SDKOptions awsOptions;
 	Aws::InitAPI(awsOptions);
 
@@ -732,5 +755,6 @@ int main(int argc, char** argv)
 	}
 
 	Aws::ShutdownAPI(awsOptions);
+	curl_global_cleanup();
 	return exitCode;
 }
