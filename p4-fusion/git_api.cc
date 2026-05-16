@@ -11,6 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cerrno>
 #include <stdexcept>
 #include <tuple>
 #include <sys/wait.h>
@@ -365,7 +366,7 @@ static std::tuple<int, std::string> runCommand(const std::string& command)
 
 	FILE* pipe = popen(command.c_str(), "r");
 	if (!pipe)
-		throw std::runtime_error("popen() failed!");
+		throw std::runtime_error(std::string("popen() failed: ") + strerror(errno));
 
 	char buffer[256];
 	while (fgets(buffer, sizeof(buffer), pipe) != nullptr)
@@ -416,11 +417,13 @@ bool GitAPI::RepackWithSystemCommand(const std::string& repoPath, bool increment
 		return false;
 	}
 
-	/* After repack, tell libgit2 to re-scan the object store */
-	git_odb* odb;
-	GIT2(git_repository_odb(&odb, m_Repo));
-	GIT2(git_odb_refresh(odb));
-	git_odb_free(odb);
+	/* After repack, replace the ODB to release stale pack file handles.
+	   git_odb_refresh() alone does NOT close FDs to deleted packs. */
+	std::string objectsPath = std::string(git_repository_path(m_Repo)) + "objects";
+	git_odb* freshOdb = nullptr;
+	GIT2(git_odb_open(&freshOdb, objectsPath.c_str()));
+	git_repository_set_odb(m_Repo, freshOdb);
+	git_odb_free(freshOdb);
 
 	return true;
 }
