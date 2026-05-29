@@ -181,15 +181,17 @@ std::string BranchSet::stripBasePath(const std::string& depotPath) const
 struct branchIntegrationMap
 {
 	std::vector<BranchedFileGroup> branchGroups;
-	std::unordered_map<std::string, int> branchIndicies;
+	std::unordered_map<std::string, int> branchIndices;
 	int fileCount = 0;
 
 	void addMerge(const std::string& sourceBranch, const std::string& targetBranch, const std::string& depotBranchPath, const FileData& rev);
-	void addTarget(const std::string& targetBranch, const std::string& depotBranchPath, const FileData& rev);
+	void addTarget(const std::string& targetBranch, const std::string& depotBranchPath, const FileData& rev, bool mergeEligible);
+	static std::string createTargetOnlyMapKey(const std::string& targetBranch, bool mergeEligible);
 
 	// Fold target-only groups into merge groups that share the same target branch,
 	// so that all files from an integration changelist end up in a single merge commit.
 	void consolidateTargetGroups();
+	static bool isMergeEligibleTargetFile(const FileData& fileData);
 
 	// note: not const, because it cleans out the branchGroups.
 	std::unique_ptr<ChangedFileGroups> createChangedFileGroups(bool mergeDeletes)
@@ -202,9 +204,32 @@ struct branchIntegrationMap
 	};
 };
 
-void branchIntegrationMap::addTarget(const std::string& targetBranch, const std::string& depotBranchPath, const FileData& fileData)
+std::string branchIntegrationMap::createTargetOnlyMapKey(const std::string& targetBranch, bool mergeEligible)
 {
-	addMerge(EMPTY_STRING, targetBranch, depotBranchPath, fileData);
+	return EMPTY_STRING + std::string("/") + targetBranch + (mergeEligible ? "/merge-eligible" : "/target-only");
+}
+
+void branchIntegrationMap::addTarget(const std::string& targetBranch, const std::string& depotBranchPath, const FileData& fileData, bool mergeEligible)
+{
+	const std::string mapKey = createTargetOnlyMapKey(targetBranch, mergeEligible);
+	const auto entry = branchIndices.find(mapKey);
+	if (entry == branchIndices.end())
+	{
+		const int index = branchGroups.size();
+		branchIndices.insert(std::make_pair(mapKey, index));
+		branchGroups.push_back(BranchedFileGroup());
+		BranchedFileGroup& bfg = branchGroups[index];
+		bfg.sourceBranch = EMPTY_STRING;
+		bfg.targetBranch = targetBranch;
+		bfg.depotBranchPath = depotBranchPath;
+		bfg.hasSource = false;
+		bfg.files.push_back(fileData);
+	}
+	else
+	{
+		branchGroups.at(entry->second).files.push_back(fileData);
+	}
+	fileCount++;
 }
 
 void branchIntegrationMap::addMerge(const std::string& sourceBranch, const std::string& targetBranch, const std::string& depotBranchPath, const FileData& fileData)
@@ -213,11 +238,11 @@ void branchIntegrationMap::addMerge(const std::string& sourceBranch, const std::
 	// key.  Because stream names can't have a '/' in them, this creates a unique key.
 	// source might be empty, and that's okay.
 	const std::string mapKey = sourceBranch + "/" + targetBranch;
-	const auto entry = branchIndicies.find(mapKey);
-	if (entry == branchIndicies.end())
+	const auto entry = branchIndices.find(mapKey);
+	if (entry == branchIndices.end())
 	{
 		const int index = branchGroups.size();
-		branchIndicies.insert(std::make_pair(mapKey, index));
+		branchIndices.insert(std::make_pair(mapKey, index));
 		branchGroups.push_back(BranchedFileGroup());
 		BranchedFileGroup& bfg = branchGroups[index];
 		bfg.sourceBranch = sourceBranch;
@@ -231,6 +256,19 @@ void branchIntegrationMap::addMerge(const std::string& sourceBranch, const std::
 		branchGroups.at(entry->second).files.push_back(fileData);
 	}
 	fileCount++;
+}
+
+bool branchIntegrationMap::isMergeEligibleTargetFile(const FileData& fileData)
+{
+	switch (fileData.GetAction())
+	{
+	case FileAction::FileDelete:
+	case FileAction::FileMoveAdd:
+	case FileAction::FileMoveDelete:
+		return true;
+	default:
+		return false;
+	}
 }
 
 void branchIntegrationMap::consolidateTargetGroups()
@@ -261,6 +299,10 @@ void branchIntegrationMap::consolidateTargetGroups()
 	{
 		BranchedFileGroup& group = branchGroups[i];
 		if (group.hasSource || group.targetBranch.empty())
+		{
+			continue;
+		}
+		if (!std::all_of(group.files.begin(), group.files.end(), isMergeEligibleTargetFile))
 		{
 			continue;
 		}
@@ -420,7 +462,8 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 			if (needsHandling)
 			{
 				// Either not a valid integrate, or a normal operation.
-				branchMap.addTarget(branch->gitAlias, branch->depotBranchPath, fileData);
+				const bool isMergeEligible = branchIntegrationMap::isMergeEligibleTargetFile(fileData);
+				branchMap.addTarget(branch->gitAlias, branch->depotBranchPath, fileData, isMergeEligible);
 			}
 		}
 		else
@@ -428,7 +471,7 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 			// It's a non-branching setup.
 			// Make sure the relative path is set.
 			fileData.SetRelativeDepotPath(relativeDepotPath);
-			branchMap.addTarget(EMPTY_STRING, EMPTY_STRING, fileData);
+			branchMap.addTarget(EMPTY_STRING, EMPTY_STRING, fileData, false);
 		}
 	}
 	return branchMap.createChangedFileGroups(m_mergeDeletes);
