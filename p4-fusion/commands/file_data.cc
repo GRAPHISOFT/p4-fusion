@@ -6,6 +6,8 @@
  */
 #include "file_data.h"
 
+#include "utils/arguments.h"
+
 FileDataStore::FileDataStore()
     : actionCategory(FileAction::FileAdd)
     , isContentsSet(false)
@@ -123,8 +125,8 @@ void FileDataStore::SetAction(std::string fileAction)
 	case FileAction::FileIntegrateDelete:
 		// This file is being deleted as the result of an integration
 		// ("delete from" in filelog).  It is the target of the integration,
-		// so it should be treated as a merge target.
-		isIntegrated = true;
+		// but it should only be treated as a merge target when mergeDeletes is enabled.
+		isIntegrated = Arguments::GetSingleton()->GetMergeDeletes() != "false";
 		isDeleted = true;
 		break;
 

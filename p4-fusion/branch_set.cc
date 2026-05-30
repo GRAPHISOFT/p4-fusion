@@ -100,6 +100,7 @@ BranchSet::BranchSet(GitAPI& gitAPI,
     const std::vector<StreamResult::MappingData>& mappings,
     const std::vector<StreamResult::MappingData>& exclusions,
     const bool includeBinaries,
+	const bool mergeDeletes,
     const std::vector<std::regex>& excludes,
     const std::vector<std::string>& overrideToTextSpecs,
     const std::vector<std::string>& overrideToBinarySpecs)
@@ -108,6 +109,7 @@ BranchSet::BranchSet(GitAPI& gitAPI,
     , m_mappings(mappings)
     , m_exclusions(exclusions)
     , m_includeBinaries(includeBinaries)
+	, m_mergeDeletes(mergeDeletes)
     , m_excludes(excludes)
     , m_overrideToTextSpec(nullptr, nullptr)
     , m_overrideToBinarySpec(nullptr, nullptr)
@@ -191,9 +193,12 @@ struct branchIntegrationMap
 	static bool isMergeEligibleTargetFile(const FileData& fileData);
 
 	// note: not const, because it cleans out the branchGroups.
-	std::unique_ptr<ChangedFileGroups> createChangedFileGroups()
+	std::unique_ptr<ChangedFileGroups> createChangedFileGroups(bool mergeDeletes)
 	{
-		consolidateTargetGroups();
+		if (mergeDeletes)
+		{
+			consolidateTargetGroups();
+		}
 		return std::unique_ptr<ChangedFileGroups>(new ChangedFileGroups(branchGroups, fileCount));
 	};
 };
@@ -604,7 +609,7 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 			if (needsHandling)
 			{
 				// Either not a valid integrate, or a normal operation.
-				const bool isMergeEligible = branchIntegrationMap::isMergeEligibleTargetFile(fileData);
+				const bool isMergeEligible = m_mergeDeletes && branchIntegrationMap::isMergeEligibleTargetFile(fileData);
 				branchMap.addTarget(branch->gitAlias, branch->depotBranchPath, fileData, isMergeEligible);
 			}
 		}
@@ -616,5 +621,5 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 			branchMap.addTarget(EMPTY_STRING, EMPTY_STRING, fileData, false);
 		}
 	}
-	return branchMap.createChangedFileGroups();
+	return branchMap.createChangedFileGroups(m_mergeDeletes);
 }
