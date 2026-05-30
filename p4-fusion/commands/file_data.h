@@ -43,6 +43,7 @@ struct FileDataStore
 	//   - empty if not an integration style change
 	std::string fromDepotFile;
 	std::string fromRevision;
+	std::string movedFromDepotFile;
 
 	// print values
 	//   the "is*" values here are intended to put the
@@ -76,6 +77,7 @@ public:
 	FileData& operator=(FileData& other);
 
 	void SetFromDepotFile(const std::string& fromDepotFile, const std::string& fromRevision);
+	void SetMovedFromDepotFile(const std::string& movedFromDepotFile);
 	void SetRelativeDepotPath(const std::string& relativePath);
 	void SetFakeIntegrationDeleteAction() { m_data->SetAction(FAKE_INTEGRATION_DELETE_ACTION_NAME); };
 
@@ -94,6 +96,7 @@ public:
 	bool IsIntegrated() const { return m_data->isIntegrated; };
 	std::string& GetFromDepotFile() const { return m_data->fromDepotFile; };
 	std::string& GetFromRevision() const { return m_data->fromRevision; };
+	const std::string& GetMovedFromDepotFile() const { return m_data->movedFromDepotFile; };
 
 	bool IsBinary() const;
 	bool IsExecutable() const;

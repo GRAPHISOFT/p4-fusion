@@ -29,6 +29,7 @@ void FileLogResult::OutputStat(StrDict* varList)
 	// Could optimize here by only performing this loop if the action type is
 	//   an integration style action (entry->isIntegration == true).
 	//   That needs testing, though.
+	bool hasPrimaryFromDepot = false;
 	int i = 0;
 	StrPtr* how = nullptr;
 	while (true)
@@ -70,11 +71,20 @@ void FileLogResult::OutputStat(StrDict* varList)
 		{
 			// copy or integrate or branch or move or archive from a location.
 			std::string fromDepotFile = varList->GetVar(("file0," + indexString).c_str())->Text();
-			std::string fromRev = varList->GetVar(("erev0," + indexString).c_str())->Text();
-			fileData.SetFromDepotFile(fromDepotFile, fromRev);
 
-			// Don't look for any other integration history; there can (should?) be at most one.
-			break;
+			if (howStr == "moved from")
+			{
+				fileData.SetMovedFromDepotFile(fromDepotFile);
+				continue;
+			}
+
+			if (!hasPrimaryFromDepot)
+			{
+				std::string fromRev = varList->GetVar(("erev0," + indexString).c_str())->Text();
+				fileData.SetFromDepotFile(fromDepotFile, fromRev);
+				hasPrimaryFromDepot = true;
+			}
+
 		}
 	}
 }
