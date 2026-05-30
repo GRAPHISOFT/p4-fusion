@@ -84,7 +84,6 @@ void FileLogResult::OutputStat(StrDict* varList)
 				fileData.SetFromDepotFile(fromDepotFile, fromRev);
 				hasPrimaryFromDepot = true;
 			}
-
 		}
 	}
 }

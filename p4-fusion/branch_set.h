@@ -96,7 +96,7 @@ public:
 	    const std::vector<StreamResult::MappingData>& mappings,
 	    const std::vector<StreamResult::MappingData>& exclusions,
 	    const bool includeBinaries,
-		const bool mergeDeletes,
+	    const bool mergeDeletes,
 	    const std::vector<std::regex>& excludes,
 	    const std::vector<std::string>& overrideToTextSpecs,
 	    const std::vector<std::string>& overrideToBinarySpecs);
