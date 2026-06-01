@@ -355,6 +355,7 @@ int Main(int argc, char** argv)
 	PRINT("Look Ahead: " << lookAhead);
 	PRINT("Max Retries: " << retriesStr);
 	PRINT("Max Changes: " << maxChanges);
+	PRINT("Merge Deletes: " << mergeDeletes);
 	PRINT("Refresh Threshold: " << refreshStr);
 	PRINT("Fsync Enable: " << fsyncEnable);
 	PRINT("Include Binaries: " << includeBinaries);
