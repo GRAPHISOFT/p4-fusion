@@ -60,7 +60,7 @@ struct FileDataStore
 
 	FileDataStore();
 
-	void SetAction(std::string action);
+	void SetAction(std::string action, bool mergeDeletes = false);
 
 	void Clear();
 };
@@ -79,7 +79,7 @@ public:
 	void SetFromDepotFile(const std::string& fromDepotFile, const std::string& fromRevision);
 	void SetMovedFromDepotFile(const std::string& movedFromDepotFile);
 	void SetRelativeDepotPath(const std::string& relativePath);
-	void SetFakeIntegrationDeleteAction() { m_data->SetAction(FAKE_INTEGRATION_DELETE_ACTION_NAME); };
+	void SetFakeIntegrationDeleteAction(bool mergeDeletes) { m_data->SetAction(FAKE_INTEGRATION_DELETE_ACTION_NAME, mergeDeletes); };
 
 	// moves the argument's data into this file data structure.
 	void MoveContentsOnceFrom(const std::vector<char>& contents);

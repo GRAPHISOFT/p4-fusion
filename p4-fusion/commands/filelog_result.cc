@@ -6,6 +6,8 @@
  */
 #include "filelog_result.h"
 
+#include "utils/arguments.h"
+
 // Should be called once per varlist.  Each filelog file
 //   is its own entry.
 void FileLogResult::OutputStat(StrDict* varList)
@@ -22,6 +24,7 @@ void FileLogResult::OutputStat(StrDict* varList)
 	std::string type = varList->GetVar("type0")->Text();
 	std::string revision = varList->GetVar("rev0")->Text();
 	std::string action = varList->GetVar("action0")->Text();
+	const bool mergeDeletes = Arguments::GetSingleton()->GetMergeDeletes() != "false";
 
 	m_FileData.push_back(FileData(depotFileStr, revision, action, type));
 	FileData& fileData = m_FileData.back();
@@ -64,7 +67,7 @@ void FileLogResult::OutputStat(StrDict* varList)
 		{
 			// The action needs to be marked as something very clearly a delete.
 			// See file_data.h and file_data.cc for this special replaced action.
-			fileData.SetFakeIntegrationDeleteAction();
+			fileData.SetFakeIntegrationDeleteAction(mergeDeletes);
 		}
 
 		if (STDHelpers::EndsWith(howStr, " from"))

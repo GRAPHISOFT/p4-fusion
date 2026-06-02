@@ -6,8 +6,6 @@
  */
 #include "file_data.h"
 
-#include "utils/arguments.h"
-
 FileDataStore::FileDataStore()
     : actionCategory(FileAction::FileAdd)
     , isContentsSet(false)
@@ -100,7 +98,7 @@ bool FileData::IsExecutable() const
 
 FileAction extrapolateFileAction(std::string& action);
 
-void FileDataStore::SetAction(std::string fileAction)
+void FileDataStore::SetAction(std::string fileAction, bool mergeDeletes)
 {
 	action = fileAction;
 	actionCategory = extrapolateFileAction(fileAction);
@@ -126,7 +124,7 @@ void FileDataStore::SetAction(std::string fileAction)
 		// This file is being deleted as the result of an integration
 		// ("delete from" in filelog).  It is the target of the integration,
 		// but it should only be treated as a merge target when mergeDeletes is enabled.
-		isIntegrated = Arguments::GetSingleton()->GetMergeDeletes() != "false";
+		isIntegrated = mergeDeletes;
 		isDeleted = true;
 		break;
 
