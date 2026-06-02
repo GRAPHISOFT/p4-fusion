@@ -54,6 +54,8 @@ void FileLogResult::OutputStat(StrDict* varList)
 		//	   This tool doesn't care about this action.  These are ignored.
 		// "* from" - integrated into this depot file from another location.  Definitely care about these.
 		// (* here is "add", "merge", "branch", "moved", "copy", "delete", "edit")
+		// Move/rename can emit both "copy from" and "moved from" for one target file: "copy from" points
+		// to source-branch renamed path, while "moved from" points to target-branch pre-rename path deleted.
 		// "Add w/ Edit", "Merge w/ Edit" - an integrate + an edit on top of the merge.
 		//			(Add - it hasn't existed before in the target; Merge - it already existed there and is being edited)
 		//			This one is seen often in Java move operations between trees when the "package" line needs to
@@ -72,6 +74,8 @@ void FileLogResult::OutputStat(StrDict* varList)
 
 		if (STDHelpers::EndsWith(howStr, " from"))
 		{
+			// Keep rename lineage separate so "moved from" does not overwrite the primary merge source edge.
+			// fromDepotFile drives merge parent selection; movedFromDepotFile is only for later target-file mapping.
 			// copy or integrate or branch or move or archive from a location.
 			std::string fromDepotFile = varList->GetVar(("file0," + indexString).c_str())->Text();
 

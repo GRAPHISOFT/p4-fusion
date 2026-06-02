@@ -428,6 +428,7 @@ void branchIntegrationMap::consolidateTargetGroups()
 
 					if (!isMatch)
 					{
+						// Use moved-from lineage to attach target-only move/delete entries to the correct source merge group.
 						const auto& movedFromPaths = mergeMovedFromDepotPaths[mergeGroupIndex];
 						if (movedFromPaths.find(targetFile.GetDepotFile()) != movedFromPaths.end())
 						{
