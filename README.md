@@ -65,7 +65,7 @@ These execution times are expected to scale as expected with larger depots (mill
         Disable performing a Git merge when a Perforce branch integrates (or copies, etc) into another branch.
 
 --mergeDeletes [Optional, Default is true]
-        When enabled, files that are deleted or moved on a target branch as part of an integration changelist are folded into the merge commit rather than being placed in a separate non-merge commit.
+        When enabled, files that are deleted or moved on a target branch as part of an integration changelist are folded into the merge commit rather than being placed in a separate non-merge commit. Only affects runs where --branch mappings are also specified; without branches there are no merge commits, so this option has no effect.
 
 --path [Required]
         P4 depot path to convert to a Git repo.  If used with '--branch', this is the base path for the branches.
