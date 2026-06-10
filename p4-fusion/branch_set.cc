@@ -280,6 +280,11 @@ void branchIntegrationMap::consolidateTargetGroups()
 	// If multiple merge groups exist (integrations from different source branches),
 	// the target-only files are left as their own commit to avoid associating them
 	// with an arbitrary merge parent.
+	//
+	// If no merge group exists for the target branch at all (e.g. the integration
+	// source is not a configured branch), the merge-eligible files are folded into
+	// the regular target-only group for that branch so they don't form a spurious
+	// separate commit.
 
 	// First pass: count merge groups per target branch and record their index.
 	std::unordered_map<std::string, std::vector<size_t>> targetMergeGroups;
@@ -318,6 +323,25 @@ void branchIntegrationMap::consolidateTargetGroups()
 			}
 			group.files.clear();
 			groupsToRemove.push_back(i);
+		}
+		else if (it == targetMergeGroups.end())
+		{
+			// No merge group exists for this target branch (e.g. the integration
+			// source is not a configured branch).  Fold the merge-eligible files
+			// into the regular target-only group for the same branch so they don't
+			// end up in a spurious separate commit.
+			const std::string targetOnlyKey = createTargetOnlyMapKey(group.targetBranch, false);
+			auto targetIt = branchIndices.find(targetOnlyKey);
+			if (targetIt != branchIndices.end())
+			{
+				BranchedFileGroup& targetGroup = branchGroups[targetIt->second];
+				for (auto& file : group.files)
+				{
+					targetGroup.files.push_back(file);
+				}
+				group.files.clear();
+				groupsToRemove.push_back(i);
+			}
 		}
 		else if (it != targetMergeGroups.end() && it->second.size() > 1)
 		{
