@@ -53,6 +53,11 @@ void FileData::SetFromDepotFile(const std::string& fromDepotFile, const std::str
 	}
 }
 
+void FileData::SetMovedFromDepotFile(const std::string& movedFromDepotFile)
+{
+	m_data->movedFromDepotFile = movedFromDepotFile;
+}
+
 void FileData::MoveContentsOnceFrom(const std::vector<char>& contents)
 {
 	// TODO double-check the thread logic here.  It needs to be thread safe.
@@ -93,7 +98,7 @@ bool FileData::IsExecutable() const
 
 FileAction extrapolateFileAction(std::string& action);
 
-void FileDataStore::SetAction(std::string fileAction)
+void FileDataStore::SetAction(std::string fileAction, bool mergeDeletes)
 {
 	action = fileAction;
 	actionCategory = extrapolateFileAction(fileAction);
@@ -116,11 +121,10 @@ void FileDataStore::SetAction(std::string fileAction)
 		break;
 
 	case FileAction::FileIntegrateDelete:
-		// This is the source of the integration,
-		//   so even though this causes a delete to happen,
-		//   as a source, there isn't something merging into this
-		//   change.
-		isIntegrated = false;
+		// This file is being deleted as the result of an integration
+		// ("delete from" in filelog).  It is the target of the integration,
+		// but it should only be treated as a merge target when mergeDeletes is enabled.
+		isIntegrated = mergeDeletes;
 		isDeleted = true;
 		break;
 
@@ -138,6 +142,7 @@ void FileDataStore::Clear()
 	type.clear();
 	fromDepotFile.clear();
 	fromRevision.clear();
+	movedFromDepotFile.clear();
 	contents.clear();
 	relativePath.clear();
 }

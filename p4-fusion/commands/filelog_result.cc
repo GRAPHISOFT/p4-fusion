@@ -6,6 +6,8 @@
  */
 #include "filelog_result.h"
 
+#include "utils/arguments.h"
+
 // Should be called once per varlist.  Each filelog file
 //   is its own entry.
 void FileLogResult::OutputStat(StrDict* varList)
@@ -22,6 +24,7 @@ void FileLogResult::OutputStat(StrDict* varList)
 	std::string type = varList->GetVar("type0")->Text();
 	std::string revision = varList->GetVar("rev0")->Text();
 	std::string action = varList->GetVar("action0")->Text();
+	const bool mergeDeletes = Arguments::GetSingleton()->GetMergeDeletes() != "false";
 
 	m_FileData.push_back(FileData(depotFileStr, revision, action, type));
 	FileData& fileData = m_FileData.back();
@@ -29,6 +32,7 @@ void FileLogResult::OutputStat(StrDict* varList)
 	// Could optimize here by only performing this loop if the action type is
 	//   an integration style action (entry->isIntegration == true).
 	//   That needs testing, though.
+	bool hasPrimaryFromDepot = false;
 	int i = 0;
 	StrPtr* how = nullptr;
 	while (true)
@@ -50,6 +54,8 @@ void FileLogResult::OutputStat(StrDict* varList)
 		//	   This tool doesn't care about this action.  These are ignored.
 		// "* from" - integrated into this depot file from another location.  Definitely care about these.
 		// (* here is "add", "merge", "branch", "moved", "copy", "delete", "edit")
+		// Move/rename can emit both "copy from" and "moved from" for one target file: "copy from" points
+		// to source-branch renamed path, while "moved from" points to target-branch pre-rename path deleted.
 		// "Add w/ Edit", "Merge w/ Edit" - an integrate + an edit on top of the merge.
 		//			(Add - it hasn't existed before in the target; Merge - it already existed there and is being edited)
 		//			This one is seen often in Java move operations between trees when the "package" line needs to
@@ -63,18 +69,28 @@ void FileLogResult::OutputStat(StrDict* varList)
 		{
 			// The action needs to be marked as something very clearly a delete.
 			// See file_data.h and file_data.cc for this special replaced action.
-			fileData.SetFakeIntegrationDeleteAction();
+			fileData.SetFakeIntegrationDeleteAction(mergeDeletes);
 		}
 
 		if (STDHelpers::EndsWith(howStr, " from"))
 		{
+			// Keep rename lineage separate so "moved from" does not overwrite the primary merge source edge.
+			// fromDepotFile drives merge parent selection; movedFromDepotFile is only for later target-file mapping.
 			// copy or integrate or branch or move or archive from a location.
 			std::string fromDepotFile = varList->GetVar(("file0," + indexString).c_str())->Text();
-			std::string fromRev = varList->GetVar(("erev0," + indexString).c_str())->Text();
-			fileData.SetFromDepotFile(fromDepotFile, fromRev);
 
-			// Don't look for any other integration history; there can (should?) be at most one.
-			break;
+			if (howStr == "moved from")
+			{
+				fileData.SetMovedFromDepotFile(fromDepotFile);
+				continue;
+			}
+
+			if (!hasPrimaryFromDepot)
+			{
+				std::string fromRev = varList->GetVar(("erev0," + indexString).c_str())->Text();
+				fileData.SetFromDepotFile(fromDepotFile, fromRev);
+				hasPrimaryFromDepot = true;
+			}
 		}
 	}
 }
