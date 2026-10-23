@@ -206,7 +206,8 @@ std::unique_ptr<ChangesResult> P4API::Changes(const std::string& path)
 
 static bool IsChangelistNumber(const std::string& s)
 {
-	return !s.empty() && std::all_of(s.begin(), s.end(), [](unsigned char c) { return std::isdigit(c); });
+	return !s.empty() && std::all_of(s.begin(), s.end(), [](unsigned char c)
+	           { return std::isdigit(c); });
 }
 
 std::unique_ptr<ChangesResult> P4API::Changes(const std::string& path, const std::string& from, int32_t maxCount)
