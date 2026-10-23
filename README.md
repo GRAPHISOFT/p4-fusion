@@ -40,6 +40,9 @@ These execution times are expected to scale as expected with larger depots (mill
 --flushRate [Optional, Default is 1000]
         Rate at which profiling data is flushed on the disk.
 
+--fullRepackRate [Optional, Default is 1000]
+        How often (in number of CLs) to perform a full git repack instead of an incremental one. Full repack is slower but consolidates all pack files.
+
 --fsyncEnable [Optional, Default is false]
         Enable fsync() while writing objects to disk to ensure they get written to permanent storage immediately instead of being cached. This is to mitigate data loss in events of hardware failure.
 

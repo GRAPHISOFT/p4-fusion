@@ -56,6 +56,7 @@ public:
 	std::string GetIncludeBinaries() const { return GetParameter("--includeBinaries"); };
 	std::string GetMaxChanges() const { return GetParameter("--maxChanges"); };
 	std::string GetFlushRate() const { return GetParameter("--flushRate"); };
+	std::string GetFullRepackRate() const { return GetParameter("--fullRepackRate"); };
 	std::string GetNoColor() const { return GetParameter("--noColor"); };
 	std::string GetVerbose() const { return GetParameter("--verbose"); };
 	std::string GetLogFilePath() const { return GetParameter("--logFilePath"); };

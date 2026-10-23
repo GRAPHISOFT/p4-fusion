@@ -8,8 +8,13 @@
 
 #include <CoreFoundation/CoreFoundation.h>
 
-#include <cstring>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <cerrno>
+#include <stdexcept>
+#include <tuple>
+#include <sys/wait.h>
 
 #include "git2.h"
 #include "git2/sys/repository.h"
@@ -353,6 +358,74 @@ void GitAPI::RemoveFileFromIndex(const std::string& relativePath)
 	GetStringAsNFC(relativePath, pathNFC, GIT_PATH_MAX);
 
 	GIT2(git_index_remove_bypath(m_Index, pathNFC));
+}
+
+static std::tuple<int, std::string> runCommand(const std::string& command)
+{
+	std::string output;
+
+	FILE* pipe = popen(command.c_str(), "r");
+	if (!pipe)
+		throw std::runtime_error(std::string("popen() failed: ") + strerror(errno));
+
+	char buffer[256];
+	while (fgets(buffer, sizeof(buffer), pipe) != nullptr)
+		output += buffer;
+
+	int exitCode = pclose(pipe);
+
+#ifndef _WIN32
+	// On POSIX, pclose() returns a wait-status — extract the actual exit code
+	if (WIFEXITED(exitCode))
+		exitCode = WEXITSTATUS(exitCode);
+	else
+		exitCode = -1; // terminated abnormally (e.g. killed by signal)
+#endif
+
+	return { exitCode, output };
+}
+
+bool GitAPI::RepackWithSystemCommand(const std::string& repoPath, bool incrementalRepack)
+{
+	std::string command;
+	command += "git -C \"";
+	command += repoPath;
+	command += "\" repack";
+	if (!incrementalRepack)
+	{
+		command += " -a";
+	}
+	command += " -d"; // remove redundant packs after repack
+	command += " -q"; // quiet mode, without process feedback
+	command += " 2>&1";
+
+	try
+	{
+		auto commandResult = runCommand(command);
+		const auto& exitCode = std::get<0>(commandResult);
+		if (exitCode != 0)
+		{
+			const auto& output = std::get<1>(commandResult);
+			ERR("Git repack command failed with exit code: " << exitCode << std::endl
+			                                                 << "output: " << output);
+			return false;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		ERR("Git repack command failed: " << e.what());
+		return false;
+	}
+
+	/* After repack, replace the ODB to release stale pack file handles.
+	   git_odb_refresh() alone does NOT close FDs to deleted packs. */
+	std::string objectsPath = std::string(git_repository_path(m_Repo)) + "objects";
+	git_odb* freshOdb = nullptr;
+	GIT2(git_odb_open(&freshOdb, objectsPath.c_str()));
+	git_repository_set_odb(m_Repo, freshOdb);
+	git_odb_free(freshOdb);
+
+	return true;
 }
 
 std::string GitAPI::Commit(
