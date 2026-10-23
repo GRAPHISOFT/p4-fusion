@@ -135,6 +135,17 @@ int Main(int argc, char** argv)
 	const std::vector<std::string> excludesStrs = Arguments::GetSingleton()->GetExcludes();
 	const std::string excludeLogPath = Arguments::GetSingleton()->GetExcludeLogPath();
 
+	std::unique_ptr<std::ofstream> excludeLogStream;
+	if (!excludeLogPath.empty())
+	{
+		excludeLogStream.reset(new std::ofstream(excludeLogPath, std::ios::out | std::ios::app));
+		if (!excludeLogStream->is_open())
+		{
+			ERR("Failed to open exclude log file: " << excludeLogPath);
+			return 1;
+		}
+	}
+
 	std::vector<std::regex> excludes;
 	for (const auto& excludeStr : excludesStrs)
 	{
@@ -636,6 +647,23 @@ int Main(int argc, char** argv)
 		          << "|" << lastDownloadedCL - (long long)i
 		          << "). Elapsed " << commitTimer.GetTimeS() / 60.0f << " mins. (Estimated "
 		          << ((commitTimer.GetTimeS() / 60.0f) / (float)(i + 1)) * (changes.size() - i - 1) << " mins left.)");
+
+		for (const auto& dir : cl.changedFileGroups->excludedFileDirs)
+		{
+			if (excludeLogStream)
+			{
+				*excludeLogStream << dir << '\n';
+			}
+			else
+			{
+				WARN("Excluded file directory: " << dir);
+			}
+		}
+		if (excludeLogStream && !cl.changedFileGroups->excludedFileDirs.empty())
+		{
+			excludeLogStream->flush();
+		}
+
 		// Clear out finished changelist.
 		cl.Clear();
 
@@ -675,24 +703,6 @@ int Main(int argc, char** argv)
 	git.CloseIndex();
 
 	SUCCESS("Completed conversion of " << changes.size() << " CLs in " << programTimer.GetTimeS() / 60.0f << " minutes, taking " << commitTimer.GetTimeS() / 60.0f << " to commit CLs");
-
-	const auto& excludedFileDirs = branchSet.GetExcludedFileDirs();
-	std::unique_ptr<std::ofstream> excludeLogStream;
-	if (!Arguments::GetSingleton()->GetExcludeLogPath().empty())
-	{
-		excludeLogStream.reset(new std::ofstream(Arguments::GetSingleton()->GetExcludeLogPath(), std::ios::out | std::ios::app));
-	}
-	for (const auto& dir : excludedFileDirs)
-	{
-		if (excludeLogStream)
-		{
-			*excludeLogStream << dir << std::endl;
-		}
-		else
-		{
-			WARN("Excluded file directory: " << dir);
-		}
-	}
 
 	ThreadPool::GetSingleton()->ShutDown();
 

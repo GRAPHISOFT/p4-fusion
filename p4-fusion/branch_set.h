@@ -41,6 +41,8 @@ private:
 public:
 	std::vector<BranchedFileGroup> branchedFileGroups;
 	int totalFileCount;
+	// Depot directories of files in this changelist that were filtered out by the excludes.
+	std::unordered_set<std::string> excludedFileDirs;
 
 	// When all the file groups have finished being used,
 	// only then can we safely clear out the data.
@@ -72,7 +74,6 @@ private:
 	const bool m_includeBinaries;
 	const bool m_mergeDeletes;
 	const std::vector<std::regex> m_excludes;
-	mutable std::unordered_set<std::string> m_excludedFileDirs;
 	std::string m_basePath;
 	const std::vector<Branch> m_branches;
 	const std::vector<StreamResult::MappingData> m_mappings;
@@ -115,6 +116,4 @@ public:
 	//   ... the FileData object is copied, but it's underlying shared data is shared.  So, this
 	//       breaks the const.
 	std::unique_ptr<ChangedFileGroups> ParseAffectedFiles(const std::vector<FileData>& cl, const LFSClient* lfsClient) const;
-
-	const std::unordered_set<std::string>& GetExcludedFileDirs() const { return m_excludedFileDirs; };
 };
