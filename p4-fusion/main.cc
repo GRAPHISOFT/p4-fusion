@@ -62,7 +62,7 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->OptionalParameter("--fsyncEnable", "false", "Enable fsync() while writing objects to disk to ensure they get written to permanent storage immediately instead of being cached. This is to mitigate data loss in events of hardware failure.");
 	Arguments::GetSingleton()->OptionalParameter("--includeBinaries", "false", "Do not discard binary files while downloading changelists.");
 	Arguments::GetSingleton()->OptionalParameter("--flushRate", "1000", "Rate at which profiling data is flushed on the disk.");
-	Arguments::GetSingleton()->OptionalParameter("--fullRepackRate", "1000", "How often (in number of CLs) to perform a full git repack instead of an incremental one. Full repack is slower but consolidates all pack files.");
+	Arguments::GetSingleton()->OptionalParameter("--repackRate", "1000", "How often (in number of CLs) to perform an incremental repack.");
 	Arguments::GetSingleton()->OptionalParameter("--noColor", "false", "Disable colored output.");
 	Arguments::GetSingleton()->OptionalParameterList("--exclude", "A regex used to exclude files from the conversion. Can be specified more than once.\n"
 	                                                              "\tExamples:\n"
@@ -130,7 +130,7 @@ int Main(int argc, char** argv)
 	const bool includeBinaries = Arguments::GetSingleton()->GetIncludeBinaries() != "false";
 	const int maxChanges = std::atoi(Arguments::GetSingleton()->GetMaxChanges().c_str());
 	const int flushRate = std::atoi(Arguments::GetSingleton()->GetFlushRate().c_str());
-	const int fullRepackRate = std::atoi(Arguments::GetSingleton()->GetFullRepackRate().c_str());
+	const int repackRate = std::atoi(Arguments::GetSingleton()->GetRepackRate().c_str());
 	const std::vector<std::string> branchNames = Arguments::GetSingleton()->GetBranches();
 	const std::vector<std::string> excludesStrs = Arguments::GetSingleton()->GetExcludes();
 	const std::string excludeLogPath = Arguments::GetSingleton()->GetExcludeLogPath();
@@ -377,6 +377,7 @@ int Main(int argc, char** argv)
 	PRINT("No Colored Output: " << noColor);
 	PRINT("Inspecting " << branchSet.Count() << " branches");
 	PRINT("Stream Mapping " << streamMappings);
+	PRINT("Repack Rate: " << repackRate);
 	if (streamMappings)
 	{
 		PRINT("Mapped in Streams: " << mappings.size());
@@ -667,12 +668,12 @@ int Main(int argc, char** argv)
 		// Clear out finished changelist.
 		cl.Clear();
 
-		const int repackRate = fullRepackRate;
-		bool repackNeed = (repackRate == 0) && (((i + 1) % repackRate == 0) || (i == (changes.size() - 1)));
+		bool repackNeed = (repackRate > 0) && (((i + 1) % repackRate == 0) || (i == (changes.size() - 1)));
 		if (repackNeed)
 		{
-			PRINT_VERBOSE("Performing incremental git repack."); // creates pack file for every commit
-			if (git.RepackWithSystemCommand(srcPath, true))
+			PRINT_VERBOSE("Performing incremental git repack.");
+			bool incremental = true;
+			if (git.RepackWithSystemCommand(srcPath, incremental))
 			{
 				PRINT_VERBOSE("Git repack command succeeded.");
 			}
