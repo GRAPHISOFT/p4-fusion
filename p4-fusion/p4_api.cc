@@ -238,14 +238,6 @@ std::unique_ptr<ChangesResult> P4API::Changes(const std::string& path, const std
 		args.push_back("-e");
 		args.push_back(fromStr);
 	}
-	else if (!from.empty())
-	{
-		// Appending "@CL_NUMBER,@now" seems to include the current CL,
-		// which makes this awkward to deal with in general. So instead,
-		// we append "@>CL_NUMBER" so that we only receive the CLs after
-		// the current one.
-		pathAddition = "@>" + from;
-	}
 
 	args.push_back(path + pathAddition);
 
