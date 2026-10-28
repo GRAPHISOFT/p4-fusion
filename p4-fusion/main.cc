@@ -68,7 +68,7 @@ int Main(int argc, char** argv)
 	                                                              "\t\tExclude all files in Tools/Development, except AModule.ini and files in AModule, AModuleTest: --exclude \"//Tools/Development/(?!AModule/.*|AModuleTest/.*|AModule\\.ini).*\"\n"
 	                                                              "\t\tExclude all .pyc files: --exclude \".*\\.pyc\"\n"
 	                                                              "\t\tExclude a specific file: --exclude \"//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe\"\n");
-	Arguments::GetSingleton()->OptionalParameter("--excludeLogPath", "", "Path to a file where the excluded files will be logged. If not provided, logging to file will not occur.");
+	Arguments::GetSingleton()->OptionalParameter("--excludeLogPath", "", "Path to a file where the excluded files will be logged, one '<CL> <depotFile>#<rev>' line per excluded file. If not provided, excluded files are not logged.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
 	Arguments::GetSingleton()->OptionalParameterList("--lfsSpec", "Path spec for files to be handled by Git LFS. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
@@ -646,19 +646,13 @@ int Main(int argc, char** argv)
 		          << "). Elapsed " << commitTimer.GetTimeS() / 60.0f << " mins. (Estimated "
 		          << ((commitTimer.GetTimeS() / 60.0f) / (float)(i + 1)) * (changes.size() - i - 1) << " mins left.)");
 
-		for (const auto& dir : cl.changedFileGroups->excludedFileDirs)
+		const auto& excludedFiles = cl.changedFileGroups->excludedFiles;
+		if (excludeLogStream && !excludedFiles.empty())
 		{
-			if (excludeLogStream)
+			for (const auto& file : excludedFiles)
 			{
-				*excludeLogStream << dir << '\n';
+				*excludeLogStream << cl.number << ' ' << file << '\n';
 			}
-			else
-			{
-				WARN("Excluded file directory: " << dir);
-			}
-		}
-		if (excludeLogStream && !cl.changedFileGroups->excludedFileDirs.empty())
-		{
 			excludeLogStream->flush();
 		}
 

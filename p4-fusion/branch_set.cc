@@ -35,7 +35,8 @@ void ChangedFileGroups::Clear()
 		fileGroup.targetBranch.clear();
 	}
 	totalFileCount = 0;
-	excludedFileDirs.clear();
+	excludedFiles.clear();
+	excludedFiles.shrink_to_fit();
 }
 
 Branch::Branch(const std::string& branch, const std::string& alias)
@@ -505,7 +506,7 @@ void branchIntegrationMap::consolidateTargetGroups()
 std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vector<FileData>& cl, const LFSClient* lfsClient) const
 {
 	branchIntegrationMap branchMap;
-	std::unordered_set<std::string> excludedFileDirs;
+	std::vector<std::string> excludedFiles;
 	for (auto& clFileData : cl)
 	{
 		FileData fileData(clFileData);
@@ -516,8 +517,7 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 		const bool matchesAnyExcludes = matchesExcludes(depotFile);
 		if (matchesAnyExcludes)
 		{
-			const std::string depotBasePath = depotFile.substr(0, depotFile.find_last_of('/'));
-			excludedFileDirs.insert(depotBasePath);
+			excludedFiles.push_back(depotFile + "#" + fileData.GetRevision());
 		}
 
 		const bool isP4Binary = fileData.IsBinary();
@@ -649,6 +649,6 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 		}
 	}
 	std::unique_ptr<ChangedFileGroups> result = branchMap.createChangedFileGroups(m_mergeDeletes);
-	result->excludedFileDirs = std::move(excludedFileDirs);
+	result->excludedFiles = std::move(excludedFiles);
 	return result;
 }

@@ -41,8 +41,8 @@ private:
 public:
 	std::vector<BranchedFileGroup> branchedFileGroups;
 	int totalFileCount;
-	// Depot directories of files in this changelist that were filtered out by the excludes.
-	std::unordered_set<std::string> excludedFileDirs;
+	// Excluded files of this changelist in "<depotFile>#<rev>" format.
+	std::vector<std::string> excludedFiles;
 
 	// When all the file groups have finished being used,
 	// only then can we safely clear out the data.
