@@ -104,8 +104,8 @@ These execution times are expected to scale as expected with larger depots (mill
                 Exclude all .pyc files: --exclude ".*\.pyc"
                 Exclude a specific file: --exclude "//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe"
 
---excludeLogPath [Optional, Default is empty string]
-        Path to a file where the excluded files will be logged, one '<CL> <depotFile>#<rev>' line per excluded file. If not provided, excluded files are not logged.
+--excludeLog [Optional, Default is false]
+        Log the excluded files in the folder given by '--logFolderPath', one '<CL> <depotFile>#<rev>' line per excluded file. Requires '--logFolderPath'.
 
 --lfsSpec [Optional, Default is empty]
         Path spec for files to be handled by Git LFS. Can be specified more than once.

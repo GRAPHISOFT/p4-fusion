@@ -68,7 +68,7 @@ int Main(int argc, char** argv)
 	                                                              "\t\tExclude all files in Tools/Development, except AModule.ini and files in AModule, AModuleTest: --exclude \"//Tools/Development/(?!AModule/.*|AModuleTest/.*|AModule\\.ini).*\"\n"
 	                                                              "\t\tExclude all .pyc files: --exclude \".*\\.pyc\"\n"
 	                                                              "\t\tExclude a specific file: --exclude \"//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe\"\n");
-	Arguments::GetSingleton()->OptionalParameter("--excludeLogPath", "", "Path to a file where the excluded files will be logged, one '<CL> <depotFile>#<rev>' line per excluded file. If not provided, excluded files are not logged.");
+	Arguments::GetSingleton()->OptionalParameter("--excludeLog", "false", "Log the excluded files in the folder given by '--logFolderPath', one '<CL> <depotFile>#<rev>' line per excluded file. Requires '--logFolderPath'.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
 	Arguments::GetSingleton()->OptionalParameterList("--lfsSpec", "Path spec for files to be handled by Git LFS. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
@@ -131,11 +131,18 @@ int Main(int argc, char** argv)
 	const int flushRate = std::atoi(Arguments::GetSingleton()->GetFlushRate().c_str());
 	const std::vector<std::string> branchNames = Arguments::GetSingleton()->GetBranches();
 	const std::vector<std::string> excludesStrs = Arguments::GetSingleton()->GetExcludes();
-	const std::string excludeLogPath = Arguments::GetSingleton()->GetExcludeLogPath();
+	const bool excludeLog = Arguments::GetSingleton()->GetExcludeLog() != "false";
 
 	std::unique_ptr<std::ofstream> excludeLogStream;
-	if (!excludeLogPath.empty())
+	if (excludeLog)
 	{
+		if (logFolderPath.empty())
+		{
+			ERR("'--excludeLog' requires '--logFolderPath' to be set.");
+			return 1;
+		}
+
+		const std::string excludeLogPath = Log::GetLogFilePath(logFolderPath, "exclude");
 		excludeLogStream.reset(new std::ofstream(excludeLogPath, std::ios::out | std::ios::app));
 		if (!excludeLogStream->is_open())
 		{

@@ -36,6 +36,9 @@ public:
 	///          before any worker threads are spawned.
 	static void DisableColoredOutput();
 
+	/// Thread-safe. Returns '<folderPath>/<prefix>_<YYYYmmdd_HHMMSS>.log'.
+	static std::string GetLogFilePath(const std::string& folderPath, const std::string& prefix);
+
 	/// @warning NOT thread-safe. Must be called from the main thread only,
 	///          before any worker threads are spawned.
 	static bool StartLogFile(const std::string& folderPath);

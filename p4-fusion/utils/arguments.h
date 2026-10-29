@@ -64,7 +64,7 @@ public:
 	std::string GetStreamMappings() const { return GetParameter("--streamMappings"); };
 	std::vector<std::string> GetBranches() const { return GetParameterList("--branch"); };
 	std::vector<std::string> GetExcludes() const { return GetParameterList("--exclude"); };
-	std::string GetExcludeLogPath() const { return GetParameter("--excludeLogPath"); };
+	std::string GetExcludeLog() const { return GetParameter("--excludeLog"); };
 	std::vector<std::string> GetLFSSpecs() const { return GetParameterList("--lfsSpec"); }
 	std::string GetLFSServerUrl() const { return GetParameter("--lfsServerUrl"); }
 	std::string GetLFSUsername() const { return GetParameter("--lfsUsername"); }
