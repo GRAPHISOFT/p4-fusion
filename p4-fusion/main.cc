@@ -68,7 +68,7 @@ int Main(int argc, char** argv)
 	                                                              "\t\tExclude all files in Tools/Development, except AModule.ini and files in AModule, AModuleTest: --exclude \"//Tools/Development/(?!AModule/.*|AModuleTest/.*|AModule\\.ini).*\"\n"
 	                                                              "\t\tExclude all .pyc files: --exclude \".*\\.pyc\"\n"
 	                                                              "\t\tExclude a specific file: --exclude \"//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe\"\n");
-	Arguments::GetSingleton()->OptionalParameter("--excludeLogPath", "", "Path to a file where the excluded files will be logged. If not provided, logging to file will not occur.");
+	Arguments::GetSingleton()->OptionalParameter("--excludeLog", "false", "Log the excluded files in the folder given by '--logFolderPath', one '<CL> <depotFile>#<rev>' line per excluded file. Requires '--logFolderPath'.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
 	Arguments::GetSingleton()->OptionalParameterList("--lfsSpec", "Path spec for files to be handled by Git LFS. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
@@ -87,7 +87,7 @@ int Main(int argc, char** argv)
 	                                                                       "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing."
 	                                                                       "Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--verbose", "false", "Enable verbose logging.");
-	Arguments::GetSingleton()->OptionalParameter("--logFilePath", "", "Path to a log file. When set, all log output is also written to this file. Logging into file always uses verbose mode.");
+	Arguments::GetSingleton()->OptionalParameter("--logFolderPath", "", "Path to an existing folder for the log files. When set, all log output is written to this folder. Logging into file always uses verbose mode.");
 
 	PRINT("p4-fusion " P4_FUSION_VERSION);
 
@@ -110,12 +110,12 @@ int Main(int argc, char** argv)
 		Log::SetLogLevel(Log::LogLevel::Verbose);
 	}
 
-	const std::string logFilePath = Arguments::GetSingleton()->GetLogFilePath();
-	if (!logFilePath.empty())
+	const std::string logFolderPath = Arguments::GetSingleton()->GetLogFolderPath();
+	if (!logFolderPath.empty())
 	{
-		if (!Log::StartLogFile(logFilePath))
+		if (!Log::StartLogFile(logFolderPath))
 		{
-			ERR("Failed to open log file: " << logFilePath);
+			ERR("Failed to create log file in folder: " << logFolderPath);
 			return 1;
 		}
 	}
@@ -131,7 +131,25 @@ int Main(int argc, char** argv)
 	const int flushRate = std::atoi(Arguments::GetSingleton()->GetFlushRate().c_str());
 	const std::vector<std::string> branchNames = Arguments::GetSingleton()->GetBranches();
 	const std::vector<std::string> excludesStrs = Arguments::GetSingleton()->GetExcludes();
-	const std::string excludeLogPath = Arguments::GetSingleton()->GetExcludeLogPath();
+	const bool excludeLog = Arguments::GetSingleton()->GetExcludeLog() != "false";
+
+	std::unique_ptr<std::ofstream> excludeLogStream;
+	if (excludeLog)
+	{
+		if (logFolderPath.empty())
+		{
+			ERR("'--excludeLog' requires '--logFolderPath' to be set.");
+			return 1;
+		}
+
+		const std::string excludeLogPath = Log::GetLogFilePath(logFolderPath, "exclude");
+		excludeLogStream.reset(new std::ofstream(excludeLogPath, std::ios::out | std::ios::app));
+		if (!excludeLogStream->is_open())
+		{
+			ERR("Failed to open exclude log file: " << excludeLogPath);
+			return 1;
+		}
+	}
 
 	std::vector<std::regex> excludes;
 	for (const auto& excludeStr : excludesStrs)
@@ -634,6 +652,17 @@ int Main(int argc, char** argv)
 		          << "|" << lastDownloadedCL - (long long)i
 		          << "). Elapsed " << commitTimer.GetTimeS() / 60.0f << " mins. (Estimated "
 		          << ((commitTimer.GetTimeS() / 60.0f) / (float)(i + 1)) * (changes.size() - i - 1) << " mins left.)");
+
+		const auto& excludedFiles = cl.changedFileGroups->excludedFiles;
+		if (excludeLogStream && !excludedFiles.empty())
+		{
+			for (const auto& file : excludedFiles)
+			{
+				*excludeLogStream << cl.number << ' ' << file << '\n';
+			}
+			excludeLogStream->flush();
+		}
+
 		// Clear out finished changelist.
 		cl.Clear();
 
@@ -658,24 +687,6 @@ int Main(int argc, char** argv)
 	git.CloseIndex();
 
 	SUCCESS("Completed conversion of " << changes.size() << " CLs in " << programTimer.GetTimeS() / 60.0f << " minutes, taking " << commitTimer.GetTimeS() / 60.0f << " to commit CLs");
-
-	const auto& excludedFileDirs = branchSet.GetExcludedFileDirs();
-	std::unique_ptr<std::ofstream> excludeLogStream;
-	if (!Arguments::GetSingleton()->GetExcludeLogPath().empty())
-	{
-		excludeLogStream.reset(new std::ofstream(Arguments::GetSingleton()->GetExcludeLogPath(), std::ios::out | std::ios::app));
-	}
-	for (const auto& dir : excludedFileDirs)
-	{
-		if (excludeLogStream)
-		{
-			*excludeLogStream << dir << std::endl;
-		}
-		else
-		{
-			WARN("Excluded file directory: " << dir);
-		}
-	}
 
 	ThreadPool::GetSingleton()->ShutDown();
 

@@ -44,9 +44,34 @@ void Log::DisableColoredOutput()
 	ColorNormal = COLOR_NORMAL;
 }
 
-bool Log::StartLogFile(const std::string& filePath)
+std::string Log::GetLogFilePath(const std::string& folderPath, const std::string& prefix)
 {
-	logFileStream.open(filePath, std::ios::out | std::ios::app);
+	// Computed once so that all log files of the same run share the same timestamp.
+	static const std::string runTimestamp = []()
+	{
+		const auto now = std::chrono::system_clock::now();
+		const auto time = std::chrono::system_clock::to_time_t(now);
+
+		std::tm tm;
+		localtime_r(&time, &tm);
+
+		std::ostringstream oss;
+		oss << std::put_time(&tm, "%Y%m%d_%H%M%S");
+		return oss.str();
+	}();
+
+	std::string filePath = folderPath;
+	if (!folderPath.empty() && folderPath.back() != '/' && folderPath.back() != '\\')
+	{
+		filePath += '/';
+	}
+	filePath += prefix + "_" + runTimestamp + ".log";
+	return filePath;
+}
+
+bool Log::StartLogFile(const std::string& folderPath)
+{
+	logFileStream.open(GetLogFilePath(folderPath, "run"), std::ios::out | std::ios::app);
 	return logFileStream.is_open();
 }
 
