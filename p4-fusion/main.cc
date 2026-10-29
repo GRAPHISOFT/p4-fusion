@@ -87,7 +87,7 @@ int Main(int argc, char** argv)
 	                                                                       "In includeBinaries+LFS mode, the LFS pathspecs control where to commit what; in that case this does nothing."
 	                                                                       "Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--verbose", "false", "Enable verbose logging.");
-	Arguments::GetSingleton()->OptionalParameter("--logFilePath", "", "Path to a log file. When set, all log output is also written to this file. Logging into file always uses verbose mode.");
+	Arguments::GetSingleton()->OptionalParameter("--logFolderPath", "", "Path to an existing folder for the log files. When set, all log output is written to this folder. Logging into file always uses verbose mode.");
 
 	PRINT("p4-fusion " P4_FUSION_VERSION);
 
@@ -110,12 +110,12 @@ int Main(int argc, char** argv)
 		Log::SetLogLevel(Log::LogLevel::Verbose);
 	}
 
-	const std::string logFilePath = Arguments::GetSingleton()->GetLogFilePath();
-	if (!logFilePath.empty())
+	const std::string logFolderPath = Arguments::GetSingleton()->GetLogFolderPath();
+	if (!logFolderPath.empty())
 	{
-		if (!Log::StartLogFile(logFilePath))
+		if (!Log::StartLogFile(logFolderPath))
 		{
-			ERR("Failed to open log file: " << logFilePath);
+			ERR("Failed to create log file in folder: " << logFolderPath);
 			return 1;
 		}
 	}

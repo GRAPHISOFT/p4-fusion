@@ -46,8 +46,8 @@ These execution times are expected to scale as expected with larger depots (mill
 --includeBinaries [Optional, Default is false]
         Do not discard binary files while downloading changelists.
 
---logFilePath [Optional, Default is empty]
-        Path to a log file. When set, all log output is also written to this file. Logging into file always uses verbose mode.
+--logFolderPath [Optional, Default is empty]
+        Path to an existing folder for the log files. When set, all log output is written to this folder. Logging into file always uses verbose mode.
 
 --lookAhead [Required]
         How many CLs in the future, at most, shall we keep downloaded by the time it is to commit them?

@@ -44,8 +44,25 @@ void Log::DisableColoredOutput()
 	ColorNormal = COLOR_NORMAL;
 }
 
-bool Log::StartLogFile(const std::string& filePath)
+bool Log::StartLogFile(const std::string& folderPath)
 {
+	std::ostringstream fileName;
+	{
+		const auto now = std::chrono::system_clock::now();
+		const auto time = std::chrono::system_clock::to_time_t(now);
+
+		std::tm tm;
+		localtime_r(&time, &tm);
+
+		fileName << "run_" << std::put_time(&tm, "%Y%m%d_%H%M%S") << ".log";
+	}
+	std::string filePath = folderPath;
+	if (!folderPath.empty() && folderPath.back() != '/' && folderPath.back() != '\\')
+	{
+		filePath += '/';
+	}
+	filePath += fileName.str();
+
 	logFileStream.open(filePath, std::ios::out | std::ios::app);
 	return logFileStream.is_open();
 }

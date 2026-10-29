@@ -58,7 +58,7 @@ public:
 	std::string GetFlushRate() const { return GetParameter("--flushRate"); };
 	std::string GetNoColor() const { return GetParameter("--noColor"); };
 	std::string GetVerbose() const { return GetParameter("--verbose"); };
-	std::string GetLogFilePath() const { return GetParameter("--logFilePath"); };
+	std::string GetLogFolderPath() const { return GetParameter("--logFolderPath"); };
 	std::string GetNoMerge() const { return GetParameter("--noMerge"); };
 	std::string GetMergeDeletes() const { return GetParameter("--mergeDeletes"); };
 	std::string GetStreamMappings() const { return GetParameter("--streamMappings"); };

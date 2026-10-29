@@ -38,7 +38,7 @@ public:
 
 	/// @warning NOT thread-safe. Must be called from the main thread only,
 	///          before any worker threads are spawned.
-	static bool StartLogFile(const std::string& filePath);
+	static bool StartLogFile(const std::string& folderPath);
 
 	/// Thread-safe. Outputs to stderr or stdout based on LogType, and writes to the log file.
 	static void DoLog(const std::string& message, LogType logType, LogLevel logLevel);
