@@ -6,6 +6,8 @@
  */
 #include "p4_api.h"
 
+#include <algorithm>
+#include <cctype>
 #include <csignal>
 #include <memory>
 
@@ -202,6 +204,12 @@ std::unique_ptr<ChangesResult> P4API::Changes(const std::string& path)
 	                                     });
 }
 
+static bool IsChangelistNumber(const std::string& s)
+{
+	return !s.empty() && std::all_of(s.begin(), s.end(), [](unsigned char c)
+	           { return std::isdigit(c); });
+}
+
 std::unique_ptr<ChangesResult> P4API::Changes(const std::string& path, const std::string& from, int32_t maxCount)
 {
 	std::vector<std::string> args = {
@@ -222,13 +230,13 @@ std::unique_ptr<ChangesResult> P4API::Changes(const std::string& path, const std
 	}
 
 	std::string pathAddition;
-	if (!from.empty())
+	if (IsChangelistNumber(from))
 	{
-		// Appending "@CL_NUMBER,@now" seems to include the current CL,
-		// which makes this awkward to deal with in general. So instead,
-		// we append "@>CL_NUMBER" so that we only receive the CLs after
-		// the current one.
-		pathAddition = "@>" + from;
+		// -e is inclusive, so start from the next CL. It filters on the CL number
+		// and avoids applying a revision range to every file under the path.
+		std::string fromStr = std::to_string(std::stoll(from) + 1);
+		args.push_back("-e");
+		args.push_back(fromStr);
 	}
 
 	args.push_back(path + pathAddition);
