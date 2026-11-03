@@ -5,6 +5,7 @@
  * For full license text, see the LICENSE.txt file in the repo root or https://opensource.org/licenses/BSD-3-Clause
  */
 #include "branch_set.h"
+#include <algorithm>
 #include <map>
 
 static const std::string EMPTY_STRING = "";
@@ -99,6 +100,7 @@ BranchSet::BranchSet(GitAPI& gitAPI,
     const std::vector<StreamResult::MappingData>& mappings,
     const std::vector<StreamResult::MappingData>& exclusions,
     const bool includeBinaries,
+    const bool mergeDeletes,
     const std::vector<std::regex>& excludes,
     const std::vector<std::string>& overrideToTextSpecs,
     const std::vector<std::string>& overrideToBinarySpecs)
@@ -107,6 +109,7 @@ BranchSet::BranchSet(GitAPI& gitAPI,
     , m_mappings(mappings)
     , m_exclusions(exclusions)
     , m_includeBinaries(includeBinaries)
+    , m_mergeDeletes(mergeDeletes)
     , m_excludes(excludes)
     , m_overrideToTextSpec(nullptr, nullptr)
     , m_overrideToBinarySpec(nullptr, nullptr)
@@ -179,19 +182,53 @@ std::string BranchSet::stripBasePath(const std::string& depotPath) const
 struct branchIntegrationMap
 {
 	std::vector<BranchedFileGroup> branchGroups;
-	std::unordered_map<std::string, int> branchIndicies;
+	std::unordered_map<std::string, int> branchIndices;
 	int fileCount = 0;
 
 	void addMerge(const std::string& sourceBranch, const std::string& targetBranch, const std::string& depotBranchPath, const FileData& rev);
-	void addTarget(const std::string& targetBranch, const std::string& depotBranchPath, const FileData& rev);
+	void addTarget(const std::string& targetBranch, const std::string& depotBranchPath, const FileData& rev, bool mergeEligible);
+	static std::string createTargetOnlyMapKey(const std::string& targetBranch, bool mergeEligible);
+
+	void consolidateTargetGroups();
+	static bool isMergeEligibleTargetFile(const FileData& fileData);
 
 	// note: not const, because it cleans out the branchGroups.
-	std::unique_ptr<ChangedFileGroups> createChangedFileGroups() { return std::unique_ptr<ChangedFileGroups>(new ChangedFileGroups(branchGroups, fileCount)); };
+	std::unique_ptr<ChangedFileGroups> createChangedFileGroups(bool mergeDeletes)
+	{
+		if (mergeDeletes)
+		{
+			consolidateTargetGroups();
+		}
+		return std::unique_ptr<ChangedFileGroups>(new ChangedFileGroups(branchGroups, fileCount));
+	};
 };
 
-void branchIntegrationMap::addTarget(const std::string& targetBranch, const std::string& depotBranchPath, const FileData& fileData)
+std::string branchIntegrationMap::createTargetOnlyMapKey(const std::string& targetBranch, bool mergeEligible)
 {
-	addMerge(EMPTY_STRING, targetBranch, depotBranchPath, fileData);
+	return EMPTY_STRING + std::string("/") + targetBranch + (mergeEligible ? "/merge-eligible" : "/target-only");
+}
+
+void branchIntegrationMap::addTarget(const std::string& targetBranch, const std::string& depotBranchPath, const FileData& fileData, bool mergeEligible)
+{
+	const std::string mapKey = createTargetOnlyMapKey(targetBranch, mergeEligible);
+	const auto entry = branchIndices.find(mapKey);
+	if (entry == branchIndices.end())
+	{
+		const int index = branchGroups.size();
+		branchIndices.insert(std::make_pair(mapKey, index));
+		branchGroups.push_back(BranchedFileGroup());
+		BranchedFileGroup& bfg = branchGroups[index];
+		bfg.sourceBranch = EMPTY_STRING;
+		bfg.targetBranch = targetBranch;
+		bfg.depotBranchPath = depotBranchPath;
+		bfg.hasSource = false;
+		bfg.files.push_back(fileData);
+	}
+	else
+	{
+		branchGroups.at(entry->second).files.push_back(fileData);
+	}
+	fileCount++;
 }
 
 void branchIntegrationMap::addMerge(const std::string& sourceBranch, const std::string& targetBranch, const std::string& depotBranchPath, const FileData& fileData)
@@ -200,11 +237,11 @@ void branchIntegrationMap::addMerge(const std::string& sourceBranch, const std::
 	// key.  Because stream names can't have a '/' in them, this creates a unique key.
 	// source might be empty, and that's okay.
 	const std::string mapKey = sourceBranch + "/" + targetBranch;
-	const auto entry = branchIndicies.find(mapKey);
-	if (entry == branchIndicies.end())
+	const auto entry = branchIndices.find(mapKey);
+	if (entry == branchIndices.end())
 	{
 		const int index = branchGroups.size();
-		branchIndicies.insert(std::make_pair(mapKey, index));
+		branchIndices.insert(std::make_pair(mapKey, index));
 		branchGroups.push_back(BranchedFileGroup());
 		BranchedFileGroup& bfg = branchGroups[index];
 		bfg.sourceBranch = sourceBranch;
@@ -218,6 +255,249 @@ void branchIntegrationMap::addMerge(const std::string& sourceBranch, const std::
 		branchGroups.at(entry->second).files.push_back(fileData);
 	}
 	fileCount++;
+}
+
+bool branchIntegrationMap::isMergeEligibleTargetFile(const FileData& fileData)
+{
+	switch (fileData.GetAction())
+	{
+	case FileAction::FileIntegrateDelete:
+	case FileAction::FileMoveAdd:
+	case FileAction::FileMoveDelete:
+		return true;
+	default:
+		return false;
+	}
+}
+
+void branchIntegrationMap::consolidateTargetGroups()
+{
+	// Fold target-only groups (e.g. move/deletes on the target side of an integration)
+	// into a merge group that shares the same target branch.  This ensures these files
+	// appear in the merge commit rather than a separate non-merge commit.
+	//
+	// Only consolidate when exactly one merge group exists for a given target branch.
+	// If multiple merge groups exist (integrations from different source branches),
+	// the target-only files are left as their own commit to avoid associating them
+	// with an arbitrary merge parent.
+	//
+	// If no merge group exists for the target branch at all (e.g. the integration
+	// source is not a configured branch), the merge-eligible files are folded into
+	// the regular target-only group for that branch so they don't form a spurious
+	// separate commit.
+
+	// First pass: count merge groups per target branch and record their index.
+	std::unordered_map<std::string, std::vector<size_t>> targetMergeGroups;
+	for (size_t i = 0; i < branchGroups.size(); i++)
+	{
+		BranchedFileGroup& group = branchGroups[i];
+		if (group.hasSource && !group.targetBranch.empty())
+		{
+			targetMergeGroups[group.targetBranch].push_back(i);
+		}
+	}
+
+	// Second pass: fold target-only groups into merge groups where unambiguous.
+	std::vector<size_t> groupsToRemove;
+	for (size_t i = 0; i < branchGroups.size(); i++)
+	{
+		BranchedFileGroup& group = branchGroups[i];
+		if (group.hasSource || group.targetBranch.empty())
+		{
+			continue;
+		}
+		if (!std::all_of(group.files.begin(), group.files.end(), isMergeEligibleTargetFile))
+		{
+			continue;
+		}
+		// This is a target-only group.  Only fold if exactly one merge group
+		// exists for this target branch, or if files can be mapped unambiguously
+		// to one of multiple merge groups.
+		auto it = targetMergeGroups.find(group.targetBranch);
+		if (it != targetMergeGroups.end() && it->second.size() == 1)
+		{
+			BranchedFileGroup& mergeGroup = branchGroups[it->second[0]];
+			for (auto& file : group.files)
+			{
+				mergeGroup.files.push_back(file);
+			}
+			group.files.clear();
+			groupsToRemove.push_back(i);
+		}
+		else if (it == targetMergeGroups.end())
+		{
+			// No merge group exists for this target branch (e.g. the integration
+			// source is not a configured branch).  Fold the merge-eligible files
+			// into the regular target-only group for the same branch so they don't
+			// end up in a spurious separate commit.
+			const std::string targetOnlyKey = createTargetOnlyMapKey(group.targetBranch, false);
+			auto targetIt = branchIndices.find(targetOnlyKey);
+			if (targetIt != branchIndices.end())
+			{
+				BranchedFileGroup& targetGroup = branchGroups[targetIt->second];
+				for (auto& file : group.files)
+				{
+					targetGroup.files.push_back(file);
+				}
+				group.files.clear();
+				groupsToRemove.push_back(i);
+			}
+		}
+		else if (it != targetMergeGroups.end() && it->second.size() > 1)
+		{
+			auto getFileName = [](const std::string& path) -> std::string
+			{
+				size_t slashPos = path.find_last_of('/');
+				return slashPos == std::string::npos ? path : path.substr(slashPos + 1);
+			};
+
+			// Attempt to map each target-only file to a specific merge group by
+			// first using the target file's own fromDepot value (if present), then
+			// matching target relative path against source fromDepot paths.
+			std::unordered_map<size_t, std::unordered_set<std::string>> mergeFromDepotPaths;
+			std::unordered_map<size_t, std::vector<std::string>> mergeSourcePrefixes;
+			std::unordered_map<size_t, std::unordered_set<std::string>> mergeFromDepotFileNames;
+			std::unordered_map<size_t, std::unordered_set<std::string>> mergeMovedFromDepotPaths;
+
+			for (size_t mergeGroupIndex : it->second)
+			{
+				const BranchedFileGroup& mergeGroup = branchGroups[mergeGroupIndex];
+				for (const auto& mergeFile : mergeGroup.files)
+				{
+					const std::string& movedFromDepot = mergeFile.GetMovedFromDepotFile();
+					if (!movedFromDepot.empty())
+					{
+						mergeMovedFromDepotPaths[mergeGroupIndex].insert(movedFromDepot);
+					}
+
+					const std::string& fromDepot = mergeFile.GetFromDepotFile();
+					if (fromDepot.empty())
+					{
+						continue;
+					}
+
+					mergeFromDepotPaths[mergeGroupIndex].insert(fromDepot);
+					mergeFromDepotFileNames[mergeGroupIndex].insert(getFileName(fromDepot));
+
+					const std::string& mergeRelativePath = mergeFile.GetRelativeDepotPath();
+					if (!mergeRelativePath.empty()
+					    && fromDepot.size() > mergeRelativePath.size()
+					    && STDHelpers::EndsWith(fromDepot, mergeRelativePath))
+					{
+						mergeSourcePrefixes[mergeGroupIndex].push_back(fromDepot.substr(0, fromDepot.size() - mergeRelativePath.size()));
+					}
+				}
+			}
+
+			std::vector<FileData> unassigned;
+			for (auto& targetFile : group.files)
+			{
+				const std::string& targetRelativePath = targetFile.GetRelativeDepotPath();
+				const std::string& targetFromDepot = targetFile.GetFromDepotFile();
+				const std::string targetFileName = getFileName(targetRelativePath);
+				std::vector<size_t> matchingMergeGroups;
+
+				for (size_t mergeGroupIndex : it->second)
+				{
+					bool isMatch = false;
+
+					const auto& fromDepotSet = mergeFromDepotPaths[mergeGroupIndex];
+
+					// Strongest signal: target file has an explicit integration source.
+					if (!targetFromDepot.empty())
+					{
+						if (fromDepotSet.find(targetFromDepot) != fromDepotSet.end())
+						{
+							isMatch = true;
+						}
+						else
+						{
+							const auto& sourcePrefixes = mergeSourcePrefixes[mergeGroupIndex];
+							for (const std::string& sourcePrefix : sourcePrefixes)
+							{
+								if (STDHelpers::StartsWith(targetFromDepot, sourcePrefix))
+								{
+									isMatch = true;
+									break;
+								}
+							}
+						}
+					}
+
+					for (const std::string& fromDepot : fromDepotSet)
+					{
+						if (isMatch)
+						{
+							break;
+						}
+						if (STDHelpers::EndsWith(fromDepot, std::string("/") + targetRelativePath))
+						{
+							isMatch = true;
+							break;
+						}
+					}
+
+					if (!isMatch)
+					{
+						const auto& sourcePrefixes = mergeSourcePrefixes[mergeGroupIndex];
+						for (const std::string& sourcePrefix : sourcePrefixes)
+						{
+							if (fromDepotSet.find(sourcePrefix + targetRelativePath) != fromDepotSet.end())
+							{
+								isMatch = true;
+								break;
+							}
+						}
+					}
+
+					if (!isMatch)
+					{
+						// Use moved-from lineage to attach target-only move/delete entries to the correct source merge group.
+						const auto& movedFromPaths = mergeMovedFromDepotPaths[mergeGroupIndex];
+						if (movedFromPaths.find(targetFile.GetDepotFile()) != movedFromPaths.end())
+						{
+							isMatch = true;
+						}
+					}
+
+					if (!isMatch && !targetFileName.empty())
+					{
+						const auto& sourceFileNames = mergeFromDepotFileNames[mergeGroupIndex];
+						if (sourceFileNames.find(targetFileName) != sourceFileNames.end())
+						{
+							isMatch = true;
+						}
+					}
+
+					if (isMatch)
+					{
+						matchingMergeGroups.push_back(mergeGroupIndex);
+					}
+				}
+
+				if (matchingMergeGroups.size() == 1)
+				{
+					branchGroups[matchingMergeGroups[0]].files.push_back(targetFile);
+				}
+				else
+				{
+					unassigned.push_back(targetFile);
+				}
+			}
+
+			group.files = std::move(unassigned);
+			if (group.files.empty())
+			{
+				groupsToRemove.push_back(i);
+			}
+		}
+	}
+
+	// Remove folded groups in reverse order to preserve indices.
+	for (auto it = groupsToRemove.rbegin(); it != groupsToRemove.rend(); ++it)
+	{
+		branchGroups.erase(branchGroups.begin() + *it);
+	}
 }
 
 // Post condition: all returned FileData (e.g. filtered for git commit) have the relativePath set.
@@ -354,7 +634,8 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 			if (needsHandling)
 			{
 				// Either not a valid integrate, or a normal operation.
-				branchMap.addTarget(branch->gitAlias, branch->depotBranchPath, fileData);
+				const bool isMergeEligible = m_mergeDeletes && branchIntegrationMap::isMergeEligibleTargetFile(fileData);
+				branchMap.addTarget(branch->gitAlias, branch->depotBranchPath, fileData, isMergeEligible);
 			}
 		}
 		else
@@ -362,8 +643,8 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 			// It's a non-branching setup.
 			// Make sure the relative path is set.
 			fileData.SetRelativeDepotPath(relativeDepotPath);
-			branchMap.addTarget(EMPTY_STRING, EMPTY_STRING, fileData);
+			branchMap.addTarget(EMPTY_STRING, EMPTY_STRING, fileData, false);
 		}
 	}
-	return branchMap.createChangedFileGroups();
+	return branchMap.createChangedFileGroups(m_mergeDeletes);
 }
