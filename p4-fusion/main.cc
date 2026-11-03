@@ -61,7 +61,7 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->OptionalParameter("--fsyncEnable", "false", "Enable fsync() while writing objects to disk to ensure they get written to permanent storage immediately instead of being cached. This is to mitigate data loss in events of hardware failure.");
 	Arguments::GetSingleton()->OptionalParameter("--includeBinaries", "false", "Do not discard binary files while downloading changelists.");
 	Arguments::GetSingleton()->OptionalParameter("--flushRate", "1000", "Rate at which profiling data is flushed on the disk.");
-	Arguments::GetSingleton()->OptionalParameter("--repackRate", "1000", "How often (in number of CLs) to perform an incremental repack.");
+	Arguments::GetSingleton()->OptionalParameter("--repackRate", "0", "How often (in number of CLs) to perform an incremental repack.");
 	Arguments::GetSingleton()->OptionalParameter("--noColor", "false", "Disable colored output.");
 	Arguments::GetSingleton()->OptionalParameterList("--exclude", "A regex used to exclude files from the conversion. Can be specified more than once.\n"
 	                                                              "\tExamples:\n"

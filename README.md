@@ -40,7 +40,7 @@ These execution times are expected to scale as expected with larger depots (mill
 --flushRate [Optional, Default is 1000]
         Rate at which profiling data is flushed on the disk.
 
---repackRate [Optional, Default is 1000]
+--repackRate [Optional, Default is 0]
         How often (in number of CLs) to perform an incremental repack.
 
 --fsyncEnable [Optional, Default is false]
