@@ -133,6 +133,7 @@ int Main(int argc, char** argv)
 	const std::vector<std::string> excludesStrs = Arguments::GetSingleton()->GetExcludes();
 	const bool excludeLog = Arguments::GetSingleton()->GetExcludeLog() != "false";
 
+	std::string excludeLogPath;
 	std::unique_ptr<std::ofstream> excludeLogStream;
 	if (excludeLog)
 	{
@@ -142,7 +143,7 @@ int Main(int argc, char** argv)
 			return 1;
 		}
 
-		const std::string excludeLogPath = Log::GetLogFilePath(logFolderPath, "exclude");
+		excludeLogPath = Log::GetLogFilePath(logFolderPath, "exclude");
 		excludeLogStream.reset(new std::ofstream(excludeLogPath, std::ios::out | std::ios::app));
 		if (!excludeLogStream->is_open())
 		{
@@ -576,6 +577,23 @@ int Main(int argc, char** argv)
 
 		cl.WaitForBeingCommitReady();
 
+		const auto& excludedFiles = cl.changedFileGroups->excludedFiles;
+		if (excludeLogStream && !excludedFiles.empty())
+		{
+			for (const auto& file : excludedFiles)
+			{
+				*excludeLogStream << cl.number << ' ' << file << '\n';
+			}
+			excludeLogStream->flush();
+
+			if (excludeLogStream->fail())
+			{
+				ERR("Failed to write exclude log file: " << excludeLogPath << " (CL " << cl.number << "). Exiting.");
+				ThreadPool::GetSingleton()->ShutDown();
+				std::exit(1);
+			}
+		}
+
 		std::string fullName = cl.user;
 		std::string email = "deleted@user";
 		if (users.find(cl.user) != users.end())
@@ -652,16 +670,6 @@ int Main(int argc, char** argv)
 		          << "|" << lastDownloadedCL - (long long)i
 		          << "). Elapsed " << commitTimer.GetTimeS() / 60.0f << " mins. (Estimated "
 		          << ((commitTimer.GetTimeS() / 60.0f) / (float)(i + 1)) * (changes.size() - i - 1) << " mins left.)");
-
-		const auto& excludedFiles = cl.changedFileGroups->excludedFiles;
-		if (excludeLogStream && !excludedFiles.empty())
-		{
-			for (const auto& file : excludedFiles)
-			{
-				*excludeLogStream << cl.number << ' ' << file << '\n';
-			}
-			excludeLogStream->flush();
-		}
 
 		// Clear out finished changelist.
 		cl.Clear();
