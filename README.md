@@ -46,8 +46,8 @@ These execution times are expected to scale as expected with larger depots (mill
 --includeBinaries [Optional, Default is false]
         Do not discard binary files while downloading changelists.
 
---logFilePath [Optional, Default is empty]
-        Path to a log file. When set, all log output is also written to this file. Logging into file always uses verbose mode.
+--logFolderPath [Optional, Default is empty]
+        Path to an existing folder for the log files. When set, all log output is written to this folder. Logging into file always uses verbose mode.
 
 --lookAhead [Required]
         How many CLs in the future, at most, shall we keep downloaded by the time it is to commit them?
@@ -104,8 +104,8 @@ These execution times are expected to scale as expected with larger depots (mill
                 Exclude all .pyc files: --exclude ".*\.pyc"
                 Exclude a specific file: --exclude "//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe"
 
---excludeLogPath [Optional, Default is empty string]
-        Path to a file where the excluded files will be logged. If not provided, logging to file will not occur.
+--excludeLog [Optional, Default is false]
+        Log the excluded files in the folder given by '--logFolderPath', one '<CL> <depotFile>#<rev>' line per excluded file. Requires '--logFolderPath'.
 
 --lfsSpec [Optional, Default is empty]
         Path spec for files to be handled by Git LFS. Can be specified more than once.
