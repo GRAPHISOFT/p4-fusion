@@ -677,8 +677,8 @@ int Main(int argc, char** argv)
 		// Clear out finished changelist.
 		cl.Clear();
 
-		bool repackNeed = (repackRate > 0) && (((i + 1) % repackRate == 0) || (i == (changes.size() - 1)));
-		if (repackNeed)
+		bool repackNeeded = (repackRate > 0) && (((i + 1) % repackRate == 0) || (i == (changes.size() - 1)));
+		if (repackNeeded)
 		{
 			PRINT_VERBOSE("Performing incremental git repack.");
 			bool incremental = true;

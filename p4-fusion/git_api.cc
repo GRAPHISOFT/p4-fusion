@@ -374,13 +374,11 @@ static std::tuple<int, std::string> runCommand(const std::string& command)
 
 	int exitCode = pclose(pipe);
 
-#ifndef _WIN32
-	// On POSIX, pclose() returns a wait-status — extract the actual exit code
+	// pclose() returns a wait-status — extract the actual exit code
 	if (WIFEXITED(exitCode))
 		exitCode = WEXITSTATUS(exitCode);
 	else
 		exitCode = -1; // terminated abnormally (e.g. killed by signal)
-#endif
 
 	return { exitCode, output };
 }
