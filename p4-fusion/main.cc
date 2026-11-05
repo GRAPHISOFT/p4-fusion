@@ -69,7 +69,7 @@ int Main(int argc, char** argv)
 	                                                              "\t\tExclude all files in Tools/Development, except AModule.ini and files in AModule, AModuleTest: --exclude \"//Tools/Development/(?!AModule/.*|AModuleTest/.*|AModule\\.ini).*\"\n"
 	                                                              "\t\tExclude all .pyc files: --exclude \".*\\.pyc\"\n"
 	                                                              "\t\tExclude a specific file: --exclude \"//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe\"\n");
-	Arguments::GetSingleton()->OptionalParameter("--excludeLog", "false", "Log the excluded files in the folder given by '--logFolderPath', one '<CL> <depotFile>#<rev>' line per excluded file. Requires '--logFolderPath'.");
+	Arguments::GetSingleton()->OptionalParameter("--excludeLog", "false", "Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude') or 'branch' (it's on a CL but not under any '--branch'). Requires '--logFolderPath'.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
 	Arguments::GetSingleton()->OptionalParameterList("--lfsSpec", "Path spec for files to be handled by Git LFS. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");

@@ -517,7 +517,7 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 		const bool matchesAnyExcludes = matchesExcludes(depotFile);
 		if (matchesAnyExcludes)
 		{
-			excludedFiles.push_back(depotFile + "#" + fileData.GetRevision());
+			excludedFiles.push_back("regex " + depotFile + "#" + fileData.GetRevision());
 		}
 
 		const bool isP4Binary = fileData.IsBinary();
@@ -609,6 +609,7 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 			if (branch == nullptr)
 			{
 				// not a valid branch file.  skip it.
+				excludedFiles.push_back("branch " + depotFile + "#" + fileData.GetRevision());
 				continue;
 			}
 
