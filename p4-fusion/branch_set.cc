@@ -58,10 +58,11 @@ bool Branch::IsInBranch(const std::string& relativeDepotPath) const
 	return
 	    // The relative depot branch, to match this branch path, must start with the
 	    // branch path + "/".  The "StartsWith" is put at the end of the 'and' checks,
-	    // because it takes the longest.
+	    // because it takes the longest.  The comparison ignores case, because the
+	    // Graphisoft Perforce server is case-insensitive; the configured branch path is canonical.
 	    relativeDepotPath.size() > depotBranchPath.size()
 	    && relativeDepotPath[depotBranchPath.size()] == '/'
-	    && STDHelpers::StartsWith(relativeDepotPath, depotBranchPath);
+	    && STDHelpers::StartsWithIgnoreCase(relativeDepotPath, depotBranchPath);
 }
 
 Branch createBranchFromPath(const std::string& depotBranchPath)
@@ -116,6 +117,8 @@ BranchSet::BranchSet(GitAPI& gitAPI,
     , m_overrideToTextSpec(nullptr, nullptr)
     , m_overrideToBinarySpec(nullptr, nullptr)
 {
+	// The Graphisoft Perforce server is case-insensitive, so depot paths may arrive with any casing.
+	m_view.SetCaseSensitivity(MapCase::Insensitive);
 	m_view.InsertTranslationMapping(clientViewMapping);
 	if (STDHelpers::EndsWith(baseDepotPath, "/..."))
 	{
@@ -173,7 +176,7 @@ bool BranchSet::matchesExcludes(const std::string& depotPath) const
 
 std::string BranchSet::stripBasePath(const std::string& depotPath) const
 {
-	if (STDHelpers::StartsWith(depotPath, m_basePath))
+	if (STDHelpers::StartsWithIgnoreCase(depotPath, m_basePath))
 	{
 		// strip off the leading '/', too.
 		return depotPath.substr(m_basePath.size());
@@ -356,6 +359,7 @@ void branchIntegrationMap::consolidateTargetGroups()
 			// Attempt to map each target-only file to a specific merge group by
 			// first using the target file's own fromDepot value (if present), then
 			// matching target relative path against source fromDepot paths.
+			// Paths are lowercased because the Graphisoft Perforce server is case-insensitive.
 			std::unordered_map<size_t, std::unordered_set<std::string>> mergeFromDepotPaths;
 			std::unordered_map<size_t, std::vector<std::string>> mergeSourcePrefixes;
 			std::unordered_map<size_t, std::unordered_set<std::string>> mergeFromDepotFileNames;
@@ -366,13 +370,13 @@ void branchIntegrationMap::consolidateTargetGroups()
 				const BranchedFileGroup& mergeGroup = branchGroups[mergeGroupIndex];
 				for (const auto& mergeFile : mergeGroup.files)
 				{
-					const std::string& movedFromDepot = mergeFile.GetMovedFromDepotFile();
+					const std::string movedFromDepot = STDHelpers::ToLower(mergeFile.GetMovedFromDepotFile());
 					if (!movedFromDepot.empty())
 					{
 						mergeMovedFromDepotPaths[mergeGroupIndex].insert(movedFromDepot);
 					}
 
-					const std::string& fromDepot = mergeFile.GetFromDepotFile();
+					const std::string fromDepot = STDHelpers::ToLower(mergeFile.GetFromDepotFile());
 					if (fromDepot.empty())
 					{
 						continue;
@@ -381,7 +385,7 @@ void branchIntegrationMap::consolidateTargetGroups()
 					mergeFromDepotPaths[mergeGroupIndex].insert(fromDepot);
 					mergeFromDepotFileNames[mergeGroupIndex].insert(getFileName(fromDepot));
 
-					const std::string& mergeRelativePath = mergeFile.GetRelativeDepotPath();
+					const std::string mergeRelativePath = STDHelpers::ToLower(mergeFile.GetRelativeDepotPath());
 					if (!mergeRelativePath.empty()
 					    && fromDepot.size() > mergeRelativePath.size()
 					    && STDHelpers::EndsWith(fromDepot, mergeRelativePath))
@@ -394,8 +398,8 @@ void branchIntegrationMap::consolidateTargetGroups()
 			std::vector<FileData> unassigned;
 			for (auto& targetFile : group.files)
 			{
-				const std::string& targetRelativePath = targetFile.GetRelativeDepotPath();
-				const std::string& targetFromDepot = targetFile.GetFromDepotFile();
+				const std::string targetRelativePath = STDHelpers::ToLower(targetFile.GetRelativeDepotPath());
+				const std::string targetFromDepot = STDHelpers::ToLower(targetFile.GetFromDepotFile());
 				const std::string targetFileName = getFileName(targetRelativePath);
 				std::vector<size_t> matchingMergeGroups;
 
@@ -456,7 +460,7 @@ void branchIntegrationMap::consolidateTargetGroups()
 					{
 						// Use moved-from lineage to attach target-only move/delete entries to the correct source merge group.
 						const auto& movedFromPaths = mergeMovedFromDepotPaths[mergeGroupIndex];
-						if (movedFromPaths.find(targetFile.GetDepotFile()) != movedFromPaths.end())
+						if (movedFromPaths.find(STDHelpers::ToLower(targetFile.GetDepotFile())) != movedFromPaths.end())
 						{
 							isMatch = true;
 						}
@@ -550,14 +554,14 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 				{
 					// get rid of trailing ...
 					auto tempStr = v.stream2.substr(0, v.stream2.size() - 3);
-					if (STDHelpers::StartsWith(depotFile, tempStr))
+					if (STDHelpers::StartsWithIgnoreCase(depotFile, tempStr))
 					{
 						isImport = true;
 						// Shove the replacement path at the front
 						relativeDepotPath = v.stream1.substr(0, v.stream1.size() - 3) + depotFile.substr(tempStr.size());
 						break;
 					}
-					if (depotFile == tempStr)
+					if (STDHelpers::EqualsIgnoreCase(depotFile, tempStr))
 					{
 						// Map in exactly one file and nothing else.
 						relativeDepotPath = v.stream1;
@@ -584,13 +588,13 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 		{
 			if (STDHelpers::EndsWith(v.stream1, "..."))
 			{
-				if (STDHelpers::StartsWith(relativeDepotPath, v.stream1.substr(0, v.stream1.size() - 3)))
+				if (STDHelpers::StartsWithIgnoreCase(relativeDepotPath, v.stream1.substr(0, v.stream1.size() - 3)))
 				{
 					discard = true;
 					break;
 				}
 			}
-			else if (v.stream1 == relativeDepotPath)
+			else if (STDHelpers::EqualsIgnoreCase(v.stream1, relativeDepotPath))
 			{
 				discard = true;
 				break;

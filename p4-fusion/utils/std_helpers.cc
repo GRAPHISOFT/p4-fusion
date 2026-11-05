@@ -29,6 +29,48 @@ bool STDHelpers::StartsWith(const std::string& str, const std::string& checkStr)
 	return str.substr(0, checkStr.size()) == checkStr;
 }
 
+namespace
+{
+
+char AsciiToLower(char c)
+{
+	return (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
+}
+
+bool EqualsIgnoreCaseN(const std::string& str, const std::string& checkStr, size_t count)
+{
+	for (size_t i = 0; i < count; ++i)
+	{
+		if (AsciiToLower(str[i]) != AsciiToLower(checkStr[i]))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+}
+
+bool STDHelpers::StartsWithIgnoreCase(const std::string& str, const std::string& checkStr)
+{
+	if (checkStr.size() > str.size())
+	{
+		return false;
+	}
+
+	return EqualsIgnoreCaseN(str, checkStr, checkStr.size());
+}
+
+bool STDHelpers::EqualsIgnoreCase(const std::string& str, const std::string& checkStr)
+{
+	if (str.size() != checkStr.size())
+	{
+		return false;
+	}
+
+	return EqualsIgnoreCaseN(str, checkStr, str.size());
+}
+
 bool STDHelpers::Contains(const std::string& str, const std::string& subStr)
 {
 	return str.find(subStr) != std::string::npos;
@@ -70,7 +112,7 @@ void STDHelpers::StripSurrounding(std::string& source, const char c)
 std::string STDHelpers::ToLower(const std::string& source)
 {
 	std::string result = source;
-	std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+	std::transform(result.begin(), result.end(), result.begin(), AsciiToLower);
 	return result;
 }
 

@@ -38,6 +38,20 @@ int TestUtils()
 	TEST(STDHelpers::StartsWith("//depot/path/", "//depot"), true);
 	TEST(STDHelpers::StartsWith("//depot/path/", "//_depot"), false);
 
+	TEST(STDHelpers::StartsWith("//Dev/main/Sources/a.cpp", "//Dev/Main/"), false);
+	TEST(STDHelpers::StartsWithIgnoreCase("//Dev/main/Sources/a.cpp", "//Dev/Main/"), true);
+	TEST(STDHelpers::StartsWith("//DEV/MAIN/x", "//dev/main/"), false);
+	TEST(STDHelpers::StartsWithIgnoreCase("//DEV/MAIN/x", "//dev/main/"), true);
+	TEST(STDHelpers::StartsWithIgnoreCase("//Dev/Main/x", "//Dev/Main/x"), true);
+	TEST(STDHelpers::StartsWithIgnoreCase("//Dev/Mainline/x", "//Dev/Main/"), false);
+	TEST(STDHelpers::StartsWithIgnoreCase("//Dev", "//Dev/Main"), false);
+	TEST(STDHelpers::StartsWithIgnoreCase("abc", ""), true);
+
+	TEST(STDHelpers::EqualsIgnoreCase("Dev/Main", "dev/MAIN"), true);
+	TEST(STDHelpers::EqualsIgnoreCase("Dev/Main", "Dev/Main/"), false);
+	TEST(STDHelpers::EqualsIgnoreCase("Dev/Main", "Dev/Maim"), false);
+	TEST(STDHelpers::EqualsIgnoreCase("", ""), true);
+
 	TEST(STDHelpers::EndsWith("abc", "abc"), true);
 	TEST(STDHelpers::EndsWith("abc", "ab"), false);
 	TEST(STDHelpers::EndsWith("abc", "a"), false);
