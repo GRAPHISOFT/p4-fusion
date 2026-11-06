@@ -108,7 +108,7 @@ These execution times are expected to scale as expected with larger depots (mill
                 Exclude a specific file: --exclude "//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe"
 
 --excludeLog [Optional, Default is false]
-        Log the excluded files in the folder given by '--logFolderPath', one '<CL> <depotFile>#<rev>' line per excluded file. Requires '--logFolderPath'.
+        Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.
 
 --lfsSpec [Optional, Default is empty]
         Path spec for files to be handled by Git LFS. Can be specified more than once.

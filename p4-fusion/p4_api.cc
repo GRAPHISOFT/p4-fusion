@@ -161,6 +161,8 @@ bool P4API::ShutdownLibraries()
 
 void P4API::AddClientSpecView(const std::vector<std::string>& viewStrings)
 {
+	// The Graphisoft Perforce server is case-insensitive, so depot paths may arrive with any casing.
+	m_ClientMapping.SetCaseSensitivity(MapCase::Insensitive);
 	m_ClientMapping.InsertTranslationMapping(viewStrings);
 }
 
