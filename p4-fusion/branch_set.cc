@@ -573,6 +573,7 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 
 			if (!isImport)
 			{
+				excludedFiles.push_back("path " + depotFile + "#" + fileData.GetRevision());
 				continue;
 			}
 
