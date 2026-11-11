@@ -34,8 +34,9 @@ public:
 
 	bool InitializeRepository(const std::string& srcPath);
 	void OpenRepository(const std::string& repoPath);
-	// Opens an existing repository without creating anything; returns false if there is no repository at repoPath.
-	bool TryOpenRepository(const std::string& repoPath);
+	// Dry run repositories contain commits without files; they are marked in the repository config.
+	bool IsDryRunRepository() const;
+	void MarkAsDryRunRepository();
 
 	bool IsHEADExists();
 	std::string GetDepotPathFromLastCommit() const;

@@ -72,7 +72,7 @@ int Main(int argc, char** argv)
 	                                                              "\t\tExclude a specific file: --exclude \"//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe\"\n");
 	Arguments::GetSingleton()->OptionalParameter("--excludeLog", "false", "Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'binary' (binary file skipped because '--includeBinaries' is not set), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.");
 	Arguments::GetSingleton()->OptionalParameter("--includeLog", "false", "Log the files to be committed in the folder given by '--logFolderPath', one '<CL> <kind> <gitBranch> <p4action> <depotFile>#<rev>' line per file. Kind is 'git' (contents committed to the git repo), 'lfs' (matches an '--lfsSpec', committed as LFS pointer) or 'del' (deleted file). gitBranch is '-' when no '--branch' is used. Requires '--logFolderPath'.");
-	Arguments::GetSingleton()->OptionalParameter("--dryRun", "false", "Process the changelists without downloading file contents ('p4 print'), uploading to LFS or touching the git repository. An existing repository at '--src' is only read to resume from its last converted CL. Only the run, exclude and include logs are written; enables '--excludeLog' and '--includeLog'. Requires '--logFolderPath'.");
+	Arguments::GetSingleton()->OptionalParameter("--dryRun", "false", "Convert the changelists without downloading file contents ('p4 print') or uploading to LFS. The git commits are created with the original metadata (message, author, timestamp, branches, merges), but without any files, so the run can be resumed and the history structure inspected. The repository is marked with the 'p4-fusion.dryRun' git config: a real conversion refuses to continue it, and a dry run refuses to continue a real conversion. Enables '--excludeLog' and '--includeLog'. Requires '--logFolderPath'.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
 	Arguments::GetSingleton()->OptionalParameterList("--lfsSpec", "Path spec for files to be handled by Git LFS. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
@@ -453,39 +453,43 @@ int Main(int argc, char** argv)
 		PRINT("Excluded paths: " << exclusions.size());
 	}
 
-	bool repositoryOpened = false;
-	if (dryRun)
+	if (!git.InitializeRepository(srcPath))
 	{
-		repositoryOpened = git.TryOpenRepository(srcPath);
-		if (repositoryOpened)
-		{
-			SUCCESS("Dry run: opened existing Git repository at " << srcPath << " read-only");
-		}
-		else
-		{
-			WARN("Dry run: no Git repository at " << srcPath << ", processing changelists from the beginning");
-		}
+		ERR("Could not initialize Git repository. Exiting.");
+		return 1;
 	}
-	else
+
+	if (git.IsDryRunRepository())
 	{
-		if (!git.InitializeRepository(srcPath))
+		if (!dryRun)
 		{
-			ERR("Could not initialize Git repository. Exiting.");
+			ERR("Git repository at " << srcPath << " was created by '--dryRun', its commits contain no files. Use a different '--src' for the real conversion. Exiting.");
 			return 1;
 		}
-		repositoryOpened = true;
+	}
+	else if (dryRun)
+	{
+		if (git.IsHEADExists())
+		{
+			ERR("Git repository at " << srcPath << " was created by a real conversion, '--dryRun' would add commits without files to it. Use a different '--src' for the dry run. Exiting.");
+			return 1;
+		}
+		git.MarkAsDryRunRepository();
+	}
+
+	if (dryRun)
+	{
+		WARN("Dry run: commits are created with the original metadata, but without any files. Nothing is downloaded or uploaded to LFS.");
 	}
 
 	// Setup trace file generation
-	// In dry run mode the source path may not exist and must not be written, so the trace goes next to the logs.
-	const std::string tracePath = dryRun ? logFolderPath : srcPath;
-	mtr_init((tracePath + (tracePath.back() == '/' ? "" : "/") + "trace.json").c_str());
+	mtr_init((srcPath + (srcPath.back() == '/' ? "" : "/") + "trace.json").c_str());
 	MTR_META_PROCESS_NAME("p4-fusion");
 	MTR_META_THREAD_NAME("Main Thread");
 	MTR_META_THREAD_SORT_INDEX(0);
 
 	std::string resumeFromCL;
-	if (repositoryOpened && git.IsHEADExists())
+	if (git.IsHEADExists())
 	{
 		const std::string lastCommitDepotPath = git.GetDepotPathFromLastCommit();
 		const std::string depotPathWithoutDots = depotPath.substr(0, depotPath.size() - 3);
@@ -627,26 +631,18 @@ int Main(int argc, char** argv)
 			cl.StartDownloadAndLFSUpload(printBatch);
 			startupDownloadsCount++;
 		}
-
-		git.CreateIndex(lfsClient.get());
-		SUCCESS("Queued first " << startupDownloadsCount << " CLs up until CL " << changes.at(lastDownloadedCL).number << " for downloading");
-	}
-	else
-	{
-		SUCCESS("Dry run: queued first " << lastDownloadedCL + 1 << " CLs up until CL " << changes.at(lastDownloadedCL).number << " for describing");
 	}
 
-	int timezoneMinutes = 0;
-	std::unordered_map<UsersResult::UserID, UsersResult::UserData> users;
-	if (!dryRun)
-	{
-		timezoneMinutes = p4.Info()->GetServerTimezoneMinutes();
-		SUCCESS("Perforce server timezone is " << timezoneMinutes << " minutes");
+	// No .gitattributes in dry run mode: its commits have no files at all.
+	git.CreateIndex(dryRun ? nullptr : lfsClient.get());
+	SUCCESS("Queued first " << (dryRun ? lastDownloadedCL + 1 : (size_t)startupDownloadsCount) << " CLs up until CL " << changes.at(lastDownloadedCL).number << " for " << (dryRun ? "describing" : "downloading"));
 
-		// Map usernames to emails
-		users = std::move(p4.Users()->GetUserEmails());
-		SUCCESS("Received userbase details from the Perforce server");
-	}
+	int timezoneMinutes = p4.Info()->GetServerTimezoneMinutes();
+	SUCCESS("Perforce server timezone is " << timezoneMinutes << " minutes");
+
+	// Map usernames to emails
+	const std::unordered_map<UsersResult::UserID, UsersResult::UserData> users = std::move(p4.Users()->GetUserEmails());
+	SUCCESS("Received userbase details from the Perforce server");
 
 	// Commit procedure start
 	Timer commitTimer;
@@ -740,40 +736,6 @@ int Main(int argc, char** argv)
 		if (dryRun)
 		{
 			excludedFileCount += excludedFiles.size();
-
-			for (const auto& branchGroup : cl.changedFileGroups->branchedFileGroups)
-			{
-				SUCCESS(
-				    "[DRY RUN] CL " << cl.number << " would commit "
-				                    << branchGroup.files.size() << " files"
-				                    << (branchGroup.targetBranch.empty()
-				                               ? ""
-				                               : (" to branch " + branchGroup.targetBranch))
-				                    << (branchGroup.hasSource && !noMerge
-				                               ? (" merged from branch " + branchGroup.sourceBranch)
-				                               : "")
-				                    << ".");
-			}
-			SUCCESS(
-			    "[DRY RUN] CL " << cl.number << " with "
-			                    << cl.changedFileGroups->totalFileCount << " files, "
-			                    << excludedFiles.size() << " excluded (" << i + 1 << "/" << changes.size()
-			                    << "). Elapsed " << commitTimer.GetTimeS() / 60.0f << " mins.");
-
-			cl.Clear();
-
-			if (lastDownloadedCL + 1 < changes.size())
-			{
-				lastDownloadedCL++;
-				changes.at(lastDownloadedCL).PrepareDownload(branchSet);
-			}
-
-			if ((i % flushRate) == 0)
-			{
-				mtr_flush();
-			}
-
-			continue;
 		}
 
 		std::string fullName = cl.user;
@@ -793,14 +755,18 @@ int Main(int argc, char** argv)
 
 			for (auto& file : branchGroup.files)
 			{
-				std::string unescapedPath = P4Unescape(file.GetRelativeDepotPath());
-				if (file.IsDeleted())
+				// Dry run commits keep only the metadata, the index stays empty.
+				if (!dryRun)
 				{
-					git.RemoveFileFromIndex(unescapedPath);
-				}
-				else
-				{
-					git.AddFileToIndex(unescapedPath, file.GetContents(), file.IsExecutable());
+					std::string unescapedPath = P4Unescape(file.GetRelativeDepotPath());
+					if (file.IsDeleted())
+					{
+						git.RemoveFileFromIndex(unescapedPath);
+					}
+					else
+					{
+						git.AddFileToIndex(unescapedPath, file.GetContents(), file.IsExecutable());
+					}
 				}
 
 				// No use for keeping the contents in memory once it has been added
@@ -877,7 +843,10 @@ int Main(int argc, char** argv)
 			lastDownloadedCL++;
 			ChangeList& downloadCL = changes.at(lastDownloadedCL);
 			downloadCL.PrepareDownload(branchSet);
-			downloadCL.StartDownloadAndLFSUpload(printBatch);
+			if (!dryRun)
+			{
+				downloadCL.StartDownloadAndLFSUpload(printBatch);
+			}
 		}
 
 		// Occasionally flush the profiling data
@@ -889,17 +858,13 @@ int Main(int argc, char** argv)
 		// Deallocate this CL's metadata from memory
 		cl.Clear();
 	}
+	git.CloseIndex();
+
+	SUCCESS("Completed conversion of " << changes.size() << " CLs in " << programTimer.GetTimeS() / 60.0f << " minutes, taking " << commitTimer.GetTimeS() / 60.0f << " to commit CLs");
 	if (dryRun)
 	{
-		SUCCESS("[DRY RUN] Completed processing of " << changes.size() << " CLs in " << programTimer.GetTimeS() / 60.0f << " minutes: "
-		                                             << includedFileCount << " files would be committed (" << lfsFileCount << " to LFS), "
-		                                             << excludedFileCount << " files excluded. No files were downloaded and the git repository was not modified.");
-	}
-	else
-	{
-		git.CloseIndex();
-
-		SUCCESS("Completed conversion of " << changes.size() << " CLs in " << programTimer.GetTimeS() / 60.0f << " minutes, taking " << commitTimer.GetTimeS() / 60.0f << " to commit CLs");
+		SUCCESS("[DRY RUN] " << includedFileCount << " files would be committed (" << lfsFileCount << " to LFS), "
+		                     << excludedFileCount << " files excluded. No files were downloaded, the commits contain no files.");
 	}
 
 	ThreadPool::GetSingleton()->ShutDown();

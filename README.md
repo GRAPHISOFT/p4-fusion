@@ -117,7 +117,7 @@ These execution times are expected to scale as expected with larger depots (mill
         Log the files to be committed in the folder given by '--logFolderPath', one '<CL> <kind> <gitBranch> <p4action> <depotFile>#<rev>' line per file. Kind is 'git' (contents committed to the git repo), 'lfs' (matches an '--lfsSpec', committed as LFS pointer) or 'del' (deleted file). gitBranch is '-' when no '--branch' is used. Requires '--logFolderPath'.
 
 --dryRun [Optional, Default is false]
-        Process the changelists without downloading file contents ('p4 print'), uploading to LFS or touching the git repository. An existing repository at '--src' is only read to resume from its last converted CL. Only the run, exclude and include logs are written; enables '--excludeLog' and '--includeLog'. Requires '--logFolderPath'.
+        Convert the changelists without downloading file contents ('p4 print') or uploading to LFS. The git commits are created with the original metadata (message, author, timestamp, branches, merges), but without any files, so the run can be resumed and the history structure inspected. The repository is marked with the 'p4-fusion.dryRun' git config: a real conversion refuses to continue it, and a dry run refuses to continue a real conversion. Enables '--excludeLog' and '--includeLog'. Requires '--logFolderPath'.
 
 --lfsSpec [Optional, Default is empty]
         Path spec for files to be handled by Git LFS. Can be specified more than once.

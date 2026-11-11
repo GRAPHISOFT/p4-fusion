@@ -103,17 +103,32 @@ void GitAPI::OpenRepository(const std::string& repoPath)
 	GIT2(git_repository_open(&m_Repo, repoPath.c_str()));
 }
 
-bool GitAPI::TryOpenRepository(const std::string& repoPath)
+static const char* const DryRunConfigKey = "p4-fusion.dryRun";
+
+bool GitAPI::IsDryRunRepository() const
 {
-	const int errorCode = git_repository_open_ext(&m_Repo, repoPath.c_str(), GIT_REPOSITORY_OPEN_NO_SEARCH, nullptr);
+	git_config* config = nullptr;
+	GIT2(git_repository_config(&config, m_Repo));
+
+	int value = 0;
+	const int errorCode = git_config_get_bool(&value, config, DryRunConfigKey);
+	git_config_free(config);
 	if (errorCode == GIT_ENOTFOUND)
 	{
-		m_Repo = nullptr;
 		return false;
 	}
 	GIT2(errorCode);
 
-	return true;
+	return value != 0;
+}
+
+void GitAPI::MarkAsDryRunRepository()
+{
+	git_config* config = nullptr;
+	GIT2(git_repository_config(&config, m_Repo));
+	const int errorCode = git_config_set_bool(config, DryRunConfigKey, 1);
+	git_config_free(config);
+	GIT2(errorCode);
 }
 
 bool GitAPI::InitializeRepository(const std::string& srcPath)
