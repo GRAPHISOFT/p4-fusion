@@ -70,7 +70,9 @@ int Main(int argc, char** argv)
 	                                                              "\t\tExclude all files in Tools/Development, except AModule.ini and files in AModule, AModuleTest: --exclude \"//Tools/Development/(?!AModule/.*|AModuleTest/.*|AModule\\.ini).*\"\n"
 	                                                              "\t\tExclude all .pyc files: --exclude \".*\\.pyc\"\n"
 	                                                              "\t\tExclude a specific file: --exclude \"//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe\"\n");
-	Arguments::GetSingleton()->OptionalParameter("--excludeLog", "false", "Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.");
+	Arguments::GetSingleton()->OptionalParameter("--excludeLog", "false", "Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'binary' (binary file skipped because '--includeBinaries' is not set), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.");
+	Arguments::GetSingleton()->OptionalParameter("--includeLog", "false", "Log the files to be committed in the folder given by '--logFolderPath', one '<CL> <kind> <gitBranch> <p4action> <depotFile>#<rev>' line per file. Kind is 'git' (contents committed to the git repo), 'lfs' (matches an '--lfsSpec', committed as LFS pointer) or 'del' (deleted file). gitBranch is '-' when no '--branch' is used. Requires '--logFolderPath'.");
+	Arguments::GetSingleton()->OptionalParameter("--dryRun", "false", "Process the changelists without downloading file contents ('p4 print'), uploading to LFS or touching the git repository. An existing repository at '--src' is only read to resume from its last converted CL. Only the run, exclude and include logs are written; enables '--excludeLog' and '--includeLog'. Requires '--logFolderPath'.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
 	Arguments::GetSingleton()->OptionalParameterList("--lfsSpec", "Path spec for files to be handled by Git LFS. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
@@ -148,7 +150,15 @@ int Main(int argc, char** argv)
 	const int repackRate = std::atoi(Arguments::GetSingleton()->GetRepackRate().c_str());
 	const std::vector<std::string> branchNames = Arguments::GetSingleton()->GetBranches();
 	const std::vector<std::string> excludesStrs = Arguments::GetSingleton()->GetExcludes();
-	const bool excludeLog = Arguments::GetSingleton()->GetExcludeLog() != "false";
+	const bool dryRun = Arguments::GetSingleton()->GetDryRun() != "false";
+	const bool excludeLog = dryRun || Arguments::GetSingleton()->GetExcludeLog() != "false";
+	const bool includeLog = dryRun || Arguments::GetSingleton()->GetIncludeLog() != "false";
+
+	if (dryRun && logFolderPath.empty())
+	{
+		ERR("'--dryRun' requires '--logFolderPath' to be set.");
+		return 1;
+	}
 
 	std::string excludeLogPath;
 	std::unique_ptr<std::ofstream> excludeLogStream;
@@ -165,6 +175,25 @@ int Main(int argc, char** argv)
 		if (!excludeLogStream->is_open())
 		{
 			ERR("Failed to open exclude log file: " << excludeLogPath);
+			return 1;
+		}
+	}
+
+	std::string includeLogPath;
+	std::unique_ptr<std::ofstream> includeLogStream;
+	if (includeLog)
+	{
+		if (logFolderPath.empty())
+		{
+			ERR("'--includeLog' requires '--logFolderPath' to be set.");
+			return 1;
+		}
+
+		includeLogPath = Log::GetLogFilePath(logFolderPath, "include");
+		includeLogStream.reset(new std::ofstream(includeLogPath, std::ios::out | std::ios::app));
+		if (!includeLogStream->is_open())
+		{
+			ERR("Failed to open include log file: " << includeLogPath);
 			return 1;
 		}
 	}
@@ -197,7 +226,19 @@ int Main(int argc, char** argv)
 
 	GitAPI git(fsyncEnable);
 	std::unique_ptr<LFSClient> lfsClient;
-	if (!lfsPatterns.empty() && !lfsServerUrl.empty() && !lfsAPI.empty())
+	if (dryRun && !lfsPatterns.empty())
+	{
+		// Only used for classifying files as LFS tracked; there is no communicator, so nothing is uploaded.
+		lfsClient.reset(new LFSClient(git, nullptr, lfsPatterns));
+
+		PRINT("Initialized LFS client for dry run (classification only, no upload)");
+
+		if (!includeBinaries)
+		{
+			WARN("LFS support is enabled, but binaries are excluded. This is probably not what you want.");
+		}
+	}
+	else if (!lfsPatterns.empty() && !lfsServerUrl.empty() && !lfsAPI.empty())
 	{
 		std::unique_ptr<Communicator> communicator;
 		if (lfsAPI == "s3")
@@ -403,26 +444,48 @@ int Main(int argc, char** argv)
 	PRINT("Inspecting " << branchSet.Count() << " branches");
 	PRINT("Stream Mapping " << streamMappings);
 	PRINT("Repack Rate: " << repackRate);
+	PRINT("Dry Run: " << dryRun);
+	PRINT("Exclude Log: " << excludeLog);
+	PRINT("Include Log: " << includeLog);
 	if (streamMappings)
 	{
 		PRINT("Mapped in Streams: " << mappings.size());
 		PRINT("Excluded paths: " << exclusions.size());
 	}
 
-	if (!git.InitializeRepository(srcPath))
+	bool repositoryOpened = false;
+	if (dryRun)
 	{
-		ERR("Could not initialize Git repository. Exiting.");
-		return 1;
+		repositoryOpened = git.TryOpenRepository(srcPath);
+		if (repositoryOpened)
+		{
+			SUCCESS("Dry run: opened existing Git repository at " << srcPath << " read-only");
+		}
+		else
+		{
+			WARN("Dry run: no Git repository at " << srcPath << ", processing changelists from the beginning");
+		}
+	}
+	else
+	{
+		if (!git.InitializeRepository(srcPath))
+		{
+			ERR("Could not initialize Git repository. Exiting.");
+			return 1;
+		}
+		repositoryOpened = true;
 	}
 
 	// Setup trace file generation
-	mtr_init((srcPath + (srcPath.back() == '/' ? "" : "/") + "trace.json").c_str());
+	// In dry run mode the source path may not exist and must not be written, so the trace goes next to the logs.
+	const std::string tracePath = dryRun ? logFolderPath : srcPath;
+	mtr_init((tracePath + (tracePath.back() == '/' ? "" : "/") + "trace.json").c_str());
 	MTR_META_PROCESS_NAME("p4-fusion");
 	MTR_META_THREAD_NAME("Main Thread");
 	MTR_META_THREAD_SORT_INDEX(0);
 
 	std::string resumeFromCL;
-	if (git.IsHEADExists())
+	if (repositoryOpened && git.IsHEADExists())
 	{
 		const std::string lastCommitDepotPath = git.GetDepotPathFromLastCommit();
 		const std::string depotPathWithoutDots = depotPath.substr(0, depotPath.size() - 3);
@@ -554,29 +617,44 @@ int Main(int argc, char** argv)
 	// We want to submit `p4 describe` commands before sending any of the `p4 print` commands.
 	// Gives ~15% perf boost.
 	int startupDownloadsCount = 0;
-	for (size_t currentCL = 0; currentCL <= lastDownloadedCL; currentCL++)
+	if (!dryRun)
 	{
-		ChangeList& cl = changes.at(currentCL);
+		for (size_t currentCL = 0; currentCL <= lastDownloadedCL; currentCL++)
+		{
+			ChangeList& cl = changes.at(currentCL);
 
-		// Start running `p4 print` on changed files when the describe is finished. Upload LFS files if needed.
-		cl.StartDownloadAndLFSUpload(printBatch);
-		startupDownloadsCount++;
+			// Start running `p4 print` on changed files when the describe is finished. Upload LFS files if needed.
+			cl.StartDownloadAndLFSUpload(printBatch);
+			startupDownloadsCount++;
+		}
+
+		git.CreateIndex(lfsClient.get());
+		SUCCESS("Queued first " << startupDownloadsCount << " CLs up until CL " << changes.at(lastDownloadedCL).number << " for downloading");
+	}
+	else
+	{
+		SUCCESS("Dry run: queued first " << lastDownloadedCL + 1 << " CLs up until CL " << changes.at(lastDownloadedCL).number << " for describing");
 	}
 
-	git.CreateIndex(lfsClient.get());
-	SUCCESS("Queued first " << startupDownloadsCount << " CLs up until CL " << changes.at(lastDownloadedCL).number << " for downloading");
+	int timezoneMinutes = 0;
+	std::unordered_map<UsersResult::UserID, UsersResult::UserData> users;
+	if (!dryRun)
+	{
+		timezoneMinutes = p4.Info()->GetServerTimezoneMinutes();
+		SUCCESS("Perforce server timezone is " << timezoneMinutes << " minutes");
 
-	int timezoneMinutes = p4.Info()->GetServerTimezoneMinutes();
-	SUCCESS("Perforce server timezone is " << timezoneMinutes << " minutes");
-
-	// Map usernames to emails
-	const std::unordered_map<UsersResult::UserID, UsersResult::UserData> users = std::move(p4.Users()->GetUserEmails());
-	SUCCESS("Received userbase details from the Perforce server");
+		// Map usernames to emails
+		users = std::move(p4.Users()->GetUserEmails());
+		SUCCESS("Received userbase details from the Perforce server");
+	}
 
 	// Commit procedure start
 	Timer commitTimer;
+	size_t includedFileCount = 0;
+	size_t lfsFileCount = 0;
+	size_t excludedFileCount = 0;
 
-	PRINT("Last CL to start downloading is CL " << changes.at(lastDownloadedCL).number);
+	PRINT("Last CL to start " << (dryRun ? "describing" : "downloading") << " is CL " << changes.at(lastDownloadedCL).number);
 
 	for (size_t i = 0; i < changes.size(); i++)
 	{
@@ -595,7 +673,14 @@ int Main(int argc, char** argv)
 
 		ChangeList& cl = changes.at(i);
 
-		cl.WaitForBeingCommitReady();
+		if (dryRun)
+		{
+			cl.WaitForBeingDescribed();
+		}
+		else
+		{
+			cl.WaitForBeingCommitReady();
+		}
 
 		const auto& excludedFiles = cl.changedFileGroups->excludedFiles;
 		if (excludeLogStream && !excludedFiles.empty())
@@ -612,6 +697,83 @@ int Main(int argc, char** argv)
 				ThreadPool::GetSingleton()->ShutDown();
 				std::exit(1);
 			}
+		}
+
+		if (includeLogStream)
+		{
+			for (const auto& branchGroup : cl.changedFileGroups->branchedFileGroups)
+			{
+				const std::string branchName = branchGroup.targetBranch.empty() ? "-" : branchGroup.targetBranch;
+				for (const auto& file : branchGroup.files)
+				{
+					// Same classification as in ChangeList::DownloadBatch, so the log matches what a real run commits.
+					const char* kind = "git";
+					if (file.IsDeleted())
+					{
+						kind = "del";
+					}
+					else if (lfsClient && lfsClient->IsLFSTracked(P4Unescape(file.GetRelativeDepotPath())))
+					{
+						kind = "lfs";
+						lfsFileCount++;
+					}
+
+					// Keep the line space separated: some synthetic action names contain spaces.
+					std::string actionName = file.GetActionName();
+					std::replace(actionName.begin(), actionName.end(), ' ', '_');
+
+					*includeLogStream << cl.number << ' ' << kind << ' ' << branchName << ' ' << actionName << ' '
+					                  << file.GetDepotFile() << '#' << file.GetRevision() << '\n';
+					includedFileCount++;
+				}
+			}
+			includeLogStream->flush();
+
+			if (includeLogStream->fail())
+			{
+				ERR("Failed to write include log file: " << includeLogPath << " (CL " << cl.number << "). Exiting.");
+				ThreadPool::GetSingleton()->ShutDown();
+				std::exit(1);
+			}
+		}
+
+		if (dryRun)
+		{
+			excludedFileCount += excludedFiles.size();
+
+			for (const auto& branchGroup : cl.changedFileGroups->branchedFileGroups)
+			{
+				SUCCESS(
+				    "[DRY RUN] CL " << cl.number << " would commit "
+				                    << branchGroup.files.size() << " files"
+				                    << (branchGroup.targetBranch.empty()
+				                               ? ""
+				                               : (" to branch " + branchGroup.targetBranch))
+				                    << (branchGroup.hasSource && !noMerge
+				                               ? (" merged from branch " + branchGroup.sourceBranch)
+				                               : "")
+				                    << ".");
+			}
+			SUCCESS(
+			    "[DRY RUN] CL " << cl.number << " with "
+			                    << cl.changedFileGroups->totalFileCount << " files, "
+			                    << excludedFiles.size() << " excluded (" << i + 1 << "/" << changes.size()
+			                    << "). Elapsed " << commitTimer.GetTimeS() / 60.0f << " mins.");
+
+			cl.Clear();
+
+			if (lastDownloadedCL + 1 < changes.size())
+			{
+				lastDownloadedCL++;
+				changes.at(lastDownloadedCL).PrepareDownload(branchSet);
+			}
+
+			if ((i % flushRate) == 0)
+			{
+				mtr_flush();
+			}
+
+			continue;
 		}
 
 		std::string fullName = cl.user;
@@ -727,9 +889,18 @@ int Main(int argc, char** argv)
 		// Deallocate this CL's metadata from memory
 		cl.Clear();
 	}
-	git.CloseIndex();
+	if (dryRun)
+	{
+		SUCCESS("[DRY RUN] Completed processing of " << changes.size() << " CLs in " << programTimer.GetTimeS() / 60.0f << " minutes: "
+		                                             << includedFileCount << " files would be committed (" << lfsFileCount << " to LFS), "
+		                                             << excludedFileCount << " files excluded. No files were downloaded and the git repository was not modified.");
+	}
+	else
+	{
+		git.CloseIndex();
 
-	SUCCESS("Completed conversion of " << changes.size() << " CLs in " << programTimer.GetTimeS() / 60.0f << " minutes, taking " << commitTimer.GetTimeS() / 60.0f << " to commit CLs");
+		SUCCESS("Completed conversion of " << changes.size() << " CLs in " << programTimer.GetTimeS() / 60.0f << " minutes, taking " << commitTimer.GetTimeS() / 60.0f << " to commit CLs");
+	}
 
 	ThreadPool::GetSingleton()->ShutDown();
 

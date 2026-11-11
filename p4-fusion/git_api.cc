@@ -103,6 +103,19 @@ void GitAPI::OpenRepository(const std::string& repoPath)
 	GIT2(git_repository_open(&m_Repo, repoPath.c_str()));
 }
 
+bool GitAPI::TryOpenRepository(const std::string& repoPath)
+{
+	const int errorCode = git_repository_open_ext(&m_Repo, repoPath.c_str(), GIT_REPOSITORY_OPEN_NO_SEARCH, nullptr);
+	if (errorCode == GIT_ENOTFOUND)
+	{
+		m_Repo = nullptr;
+		return false;
+	}
+	GIT2(errorCode);
+
+	return true;
+}
+
 bool GitAPI::InitializeRepository(const std::string& srcPath)
 {
 	GIT2(git_repository_init(&m_Repo, srcPath.c_str(), true));

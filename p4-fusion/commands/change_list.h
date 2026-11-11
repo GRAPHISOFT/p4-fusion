@@ -48,6 +48,7 @@ struct ChangeList
 	void StartDownloadAndLFSUpload(int nPrintBatch);
 	void DownloadBatch(std::shared_ptr<std::vector<std::string>> printBatchFiles, std::shared_ptr<std::vector<FileData*>> printBatchFileData);
 
+	void WaitForBeingDescribed();
 	void WaitForBeingCommitReady();
 	void Clear();
 

@@ -111,7 +111,13 @@ These execution times are expected to scale as expected with larger depots (mill
                 Exclude a specific file: --exclude "//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe"
 
 --excludeLog [Optional, Default is false]
-        Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.
+        Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'binary' (binary file skipped because '--includeBinaries' is not set), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.
+
+--includeLog [Optional, Default is false]
+        Log the files to be committed in the folder given by '--logFolderPath', one '<CL> <kind> <gitBranch> <p4action> <depotFile>#<rev>' line per file. Kind is 'git' (contents committed to the git repo), 'lfs' (matches an '--lfsSpec', committed as LFS pointer) or 'del' (deleted file). gitBranch is '-' when no '--branch' is used. Requires '--logFolderPath'.
+
+--dryRun [Optional, Default is false]
+        Process the changelists without downloading file contents ('p4 print'), uploading to LFS or touching the git repository. An existing repository at '--src' is only read to resume from its last converted CL. Only the run, exclude and include logs are written; enables '--excludeLog' and '--includeLog'. Requires '--logFolderPath'.
 
 --lfsSpec [Optional, Default is empty]
         Path spec for files to be handled by Git LFS. Can be specified more than once.

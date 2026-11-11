@@ -162,6 +162,13 @@ void ChangeList::DownloadBatch(std::shared_ptr<std::vector<std::string>> printBa
 		    } });
 }
 
+void ChangeList::WaitForBeingDescribed()
+{
+	std::unique_lock<std::mutex> lock(*stateMutex);
+	stateCV->wait(lock, [this]()
+	    { return state == Described || state == CommitReady; });
+}
+
 void ChangeList::WaitForBeingCommitReady()
 {
 	std::unique_lock<std::mutex> lock(*stateMutex);

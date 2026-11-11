@@ -34,6 +34,8 @@ public:
 
 	bool InitializeRepository(const std::string& srcPath);
 	void OpenRepository(const std::string& repoPath);
+	// Opens an existing repository without creating anything; returns false if there is no repository at repoPath.
+	bool TryOpenRepository(const std::string& repoPath);
 
 	bool IsHEADExists();
 	std::string GetDepotPathFromLastCommit() const;

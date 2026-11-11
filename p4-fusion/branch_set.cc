@@ -541,12 +541,19 @@ std::unique_ptr<ChangedFileGroups> BranchSet::ParseAffectedFiles(const std::vect
 		const bool isLFSTracked = lfsClient && lfsClient->IsLFSTracked(relativeDepotPath);
 		const bool overrideToBinary = m_overrideToBinarySpec && git_pathspec_matches_path(m_overrideToBinarySpec.get(), GIT_PATHSPEC_IGNORE_CASE, relativeDepotPath.c_str());
 		const bool overrideToText = m_overrideToTextSpec && git_pathspec_matches_path(m_overrideToTextSpec.get(), GIT_PATHSPEC_IGNORE_CASE, relativeDepotPath.c_str());
+		const bool isSkippedBinary = !m_includeBinaries && ((isP4Binary && !overrideToText) || overrideToBinary);
+
+		const bool isInClientView = m_view.IsInLeft(depotFile);
+		if (isSkippedBinary && isInClientView && !matchesAnyExcludes)
+		{
+			excludedFiles.push_back("binary " + depotFile + "#" + fileData.GetRevision());
+		}
 
 		if (
 		    // depot file should always be present.
 		    // The left side of the client view is the depot side.
-		    !m_view.IsInLeft(depotFile)
-		    || (!m_includeBinaries && ((isP4Binary && !overrideToText) || overrideToBinary))
+		    !isInClientView
+		    || isSkippedBinary
 		    || STDHelpers::Contains(depotFile, "/.git/") // To avoid adding .git/ files in the Perforce history if any
 		    || STDHelpers::EndsWith(depotFile, "/.git") // To avoid adding a .git submodule file in the Perforce history if any
 		    || matchesAnyExcludes // Exclude files that match any excludes regexes

@@ -90,6 +90,7 @@ public:
 	const std::string& GetDepotFile() const { return m_data->depotFile; };
 	const std::string& GetRevision() const { return m_data->revision; };
 	const FileAction GetAction() const { return m_data->actionCategory; };
+	const std::string& GetActionName() const { return m_data->action; };
 	const std::string& GetRelativeDepotPath() const { return m_data->relativePath; };
 	const std::vector<char>& GetContents() const { return m_data->contents; };
 	bool IsDeleted() const { return m_data->isDeleted; };
