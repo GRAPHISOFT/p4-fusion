@@ -24,6 +24,7 @@ std::string P4API::P4USER;
 std::string P4API::P4CLIENT;
 int P4API::CommandRetries = 1;
 int P4API::CommandRefreshThreshold = 1;
+bool P4API::CaseInsensitive = true;
 std::mutex P4API::InitializationMutex;
 
 P4API::P4API()
@@ -161,8 +162,7 @@ bool P4API::ShutdownLibraries()
 
 void P4API::AddClientSpecView(const std::vector<std::string>& viewStrings)
 {
-	// The Graphisoft Perforce server is case-insensitive, so depot paths may arrive with any casing.
-	m_ClientMapping.SetCaseSensitivity(MapCase::Insensitive);
+	m_ClientMapping.SetCaseSensitivity(CaseInsensitive ? MapCase::Insensitive : MapCase::Sensitive);
 	m_ClientMapping.InsertTranslationMapping(viewStrings);
 }
 

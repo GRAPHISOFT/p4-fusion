@@ -49,6 +49,7 @@ public:
 	static ClientResult::ClientSpecData ClientSpec;
 	static int CommandRetries;
 	static int CommandRefreshThreshold;
+	static bool CaseInsensitive;
 
 	// Helix Core C++ API seems to crash while making connections parallely.
 	static std::mutex InitializationMutex;

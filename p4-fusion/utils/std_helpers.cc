@@ -16,17 +16,7 @@ bool STDHelpers::EndsWith(const std::string& str, const std::string& checkStr)
 		return false;
 	}
 
-	return std::string(str.end() - checkStr.size(), str.end()) == checkStr;
-}
-
-bool STDHelpers::StartsWith(const std::string& str, const std::string& checkStr)
-{
-	if (checkStr.size() > str.size())
-	{
-		return false;
-	}
-
-	return str.substr(0, checkStr.size()) == checkStr;
+	return str.compare(str.size() - checkStr.size(), checkStr.size(), checkStr) == 0;
 }
 
 namespace
@@ -51,24 +41,24 @@ bool EqualsIgnoreCaseN(const std::string& str, const std::string& checkStr, size
 
 }
 
-bool STDHelpers::StartsWithIgnoreCase(const std::string& str, const std::string& checkStr)
+bool STDHelpers::StartsWith(const std::string& str, const std::string& checkStr, const bool ignoreCase)
 {
 	if (checkStr.size() > str.size())
 	{
 		return false;
 	}
 
-	return EqualsIgnoreCaseN(str, checkStr, checkStr.size());
+	return ignoreCase ? EqualsIgnoreCaseN(str, checkStr, checkStr.size()) : str.compare(0, checkStr.size(), checkStr) == 0;
 }
 
-bool STDHelpers::EqualsIgnoreCase(const std::string& str, const std::string& checkStr)
+bool STDHelpers::Equals(const std::string& str, const std::string& checkStr, const bool ignoreCase)
 {
 	if (str.size() != checkStr.size())
 	{
 		return false;
 	}
 
-	return EqualsIgnoreCaseN(str, checkStr, str.size());
+	return ignoreCase ? EqualsIgnoreCaseN(str, checkStr, str.size()) : str == checkStr;
 }
 
 bool STDHelpers::Contains(const std::string& str, const std::string& subStr)

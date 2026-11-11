@@ -51,6 +51,7 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->RequiredParameter("--user", "Specify which P4USER to use. Please ensure that the user is logged in.");
 	Arguments::GetSingleton()->RequiredParameter("--client", "Name/path of the client workspace specification.");
 	Arguments::GetSingleton()->RequiredParameter("--lookAhead", "How many CLs in the future, at most, shall we keep downloaded by the time it is to commit them?");
+	Arguments::GetSingleton()->RequiredParameter("--caseHandling", "Case handling of the Perforce server, as reported by the 'Case Handling' line of 'p4 info': 'insensitive' or 'sensitive'. It controls how depot paths are matched (client view, '--path', '--branch', stream mappings and merge/move detection). Only 'insensitive' is tested and supported; 'sensitive' is rejected.");
 	Arguments::GetSingleton()->OptionalParameterList("--branch", "A branch to migrate under the depot path.  May be specified more than once.  If at least one is given and the noMerge option is false, then the Git repository will include merges between branches in the history.  You may use the formatting 'depot/path:git-alias', separating the Perforce branch sub-path from the git alias name by a ':'; if the depot path contains a ':', then you must provide the git branch alias.");
 	Arguments::GetSingleton()->OptionalParameter("--noMerge", "false", "Disable performing a Git merge when a Perforce branch integrates (or copies, etc) into another branch.");
 	Arguments::GetSingleton()->OptionalParameter("--mergeDeletes", "true", "When enabled, files that are deleted or moved on a target branch as part of an integration changelist are folded into the merge commit rather than being placed in a separate non-merge commit. Only affects runs where --branch mappings are also specified; without branches there are no merge commits, so this option has no effect.");
@@ -123,6 +124,20 @@ int Main(int argc, char** argv)
 
 	const bool noMerge = Arguments::GetSingleton()->GetNoMerge() != "false";
 	const bool mergeDeletes = Arguments::GetSingleton()->GetMergeDeletes() != "false";
+
+	const std::string caseHandling = Arguments::GetSingleton()->GetCaseHandling();
+	if (caseHandling == "sensitive")
+	{
+		ERR("'--caseHandling sensitive' (case-sensitive Perforce server) is not tested and not supported. Exiting.");
+		return 1;
+	}
+	if (caseHandling != "insensitive")
+	{
+		ERR("Invalid '--caseHandling' value '" << caseHandling << "'. Supported values are 'insensitive' and 'sensitive'. Exiting.");
+		return 1;
+	}
+	const bool caseInsensitive = caseHandling == "insensitive";
+	P4API::CaseInsensitive = caseInsensitive;
 
 	const std::string depotPath = Arguments::GetSingleton()->GetDepotPath();
 	const std::string srcPath = Arguments::GetSingleton()->GetSourcePath();
@@ -358,6 +373,7 @@ int Main(int argc, char** argv)
 	    exclusions,
 	    includeBinaries,
 	    mergeDeletes,
+	    caseInsensitive,
 	    excludes,
 	    overrideToTextSpecs,
 	    overrideToBinarySpecs);
@@ -377,6 +393,7 @@ int Main(int argc, char** argv)
 	PRINT("Max Retries: " << retriesStr);
 	PRINT("Max Changes: " << maxChanges);
 	PRINT("Merge Deletes: " << mergeDeletes);
+	PRINT("Case Handling: " << caseHandling);
 	PRINT("Refresh Threshold: " << refreshStr);
 	PRINT("Fsync Enable: " << fsyncEnable);
 	PRINT("Include Binaries: " << includeBinaries);
