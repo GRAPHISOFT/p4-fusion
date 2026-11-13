@@ -41,8 +41,6 @@ private:
 public:
 	std::vector<BranchedFileGroup> branchedFileGroups;
 	int totalFileCount;
-	// Excluded files of this changelist in "<reason> <depotFile>#<rev>" format.
-	// Reasons: "regex" (matches an --exclude), "branch" (not under any --branch).
 	std::vector<std::string> excludedFiles;
 
 	// When all the file groups have finished being used,
