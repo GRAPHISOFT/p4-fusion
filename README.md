@@ -34,6 +34,9 @@ These execution times are expected to scale as expected with larger depots (mill
         in the history.   You may use the formatting 'depot/path:git-alias', separating the Perforce branch sub-path from the git alias name by a ':'; if the depot path contains a ':', then you must provide
         the git branch alias.
 
+--caseHandling [Required]
+        Case handling of the Perforce server, as reported by the 'Case Handling' line of 'p4 info': 'insensitive' or 'sensitive'. It controls how depot paths are matched (client view, '--path', '--branch', stream mappings and merge/move detection). Only 'insensitive' is tested and supported; 'sensitive' is rejected.
+
 --client [Required]
         Name/path of the client workspace specification.
 
@@ -108,7 +111,7 @@ These execution times are expected to scale as expected with larger depots (mill
                 Exclude a specific file: --exclude "//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe"
 
 --excludeLog [Optional, Default is false]
-        Log the excluded files in the folder given by '--logFolderPath', one '<CL> <depotFile>#<rev>' line per excluded file. Requires '--logFolderPath'.
+        Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.
 
 --lfsSpec [Optional, Default is empty]
         Path spec for files to be handled by Git LFS. Can be specified more than once.
@@ -242,6 +245,7 @@ E.g. You can build tests and at the same time enable profiling by running `./gen
         --user $P4USER \
         --port $P4PORT \
         --client $P4CLIENT \
+        --caseHandling insensitive \
         --src clones/.git \
         --networkThreads 200 \
         --printBatch 100 \

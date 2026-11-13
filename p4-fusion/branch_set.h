@@ -41,7 +41,6 @@ private:
 public:
 	std::vector<BranchedFileGroup> branchedFileGroups;
 	int totalFileCount;
-	// Excluded files of this changelist in "<depotFile>#<rev>" format.
 	std::vector<std::string> excludedFiles;
 
 	// When all the file groups have finished being used,
@@ -61,7 +60,7 @@ public:
 
 	Branch(const std::string& branch, const std::string& alias);
 
-	bool IsInBranch(const std::string& relativeDepotPath) const;
+	bool IsInBranch(const std::string& relativeDepotPath, const bool caseInsensitive) const;
 };
 
 // A singular view on the branches and a base view (acts as a filter to trim down affected files).
@@ -73,6 +72,7 @@ private:
 	// Technically, these should all be const.
 	const bool m_includeBinaries;
 	const bool m_mergeDeletes;
+	const bool m_caseInsensitive;
 	const std::vector<std::regex> m_excludes;
 	std::string m_basePath;
 	const std::vector<Branch> m_branches;
@@ -98,6 +98,7 @@ public:
 	    const std::vector<StreamResult::MappingData>& exclusions,
 	    const bool includeBinaries,
 	    const bool mergeDeletes,
+	    const bool caseInsensitive,
 	    const std::vector<std::regex>& excludes,
 	    const std::vector<std::string>& overrideToTextSpecs,
 	    const std::vector<std::string>& overrideToBinarySpecs);

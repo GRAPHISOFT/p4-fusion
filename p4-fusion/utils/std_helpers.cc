@@ -16,17 +16,49 @@ bool STDHelpers::EndsWith(const std::string& str, const std::string& checkStr)
 		return false;
 	}
 
-	return std::string(str.end() - checkStr.size(), str.end()) == checkStr;
+	return str.compare(str.size() - checkStr.size(), checkStr.size(), checkStr) == 0;
 }
 
-bool STDHelpers::StartsWith(const std::string& str, const std::string& checkStr)
+namespace
+{
+
+char AsciiToLower(char c)
+{
+	return (c >= 'A' && c <= 'Z') ? (char)(c - 'A' + 'a') : c;
+}
+
+bool EqualsIgnoreCaseN(const std::string& str, const std::string& checkStr, size_t count)
+{
+	for (size_t i = 0; i < count; ++i)
+	{
+		if (AsciiToLower(str[i]) != AsciiToLower(checkStr[i]))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+}
+
+bool STDHelpers::StartsWith(const std::string& str, const std::string& checkStr, const bool ignoreCase)
 {
 	if (checkStr.size() > str.size())
 	{
 		return false;
 	}
 
-	return str.substr(0, checkStr.size()) == checkStr;
+	return ignoreCase ? EqualsIgnoreCaseN(str, checkStr, checkStr.size()) : str.compare(0, checkStr.size(), checkStr) == 0;
+}
+
+bool STDHelpers::Equals(const std::string& str, const std::string& checkStr, const bool ignoreCase)
+{
+	if (str.size() != checkStr.size())
+	{
+		return false;
+	}
+
+	return ignoreCase ? EqualsIgnoreCaseN(str, checkStr, str.size()) : str == checkStr;
 }
 
 bool STDHelpers::Contains(const std::string& str, const std::string& subStr)
@@ -70,7 +102,7 @@ void STDHelpers::StripSurrounding(std::string& source, const char c)
 std::string STDHelpers::ToLower(const std::string& source)
 {
 	std::string result = source;
-	std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+	std::transform(result.begin(), result.end(), result.begin(), AsciiToLower);
 	return result;
 }
 

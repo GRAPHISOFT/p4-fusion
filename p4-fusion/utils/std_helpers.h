@@ -14,7 +14,8 @@ class STDHelpers
 {
 public:
 	static bool EndsWith(const std::string& str, const std::string& checkStr);
-	static bool StartsWith(const std::string& str, const std::string& checkStr);
+	static bool StartsWith(const std::string& str, const std::string& checkStr, const bool ignoreCase = false);
+	static bool Equals(const std::string& str, const std::string& checkStr, const bool ignoreCase = false);
 	static bool Contains(const std::string& str, const std::string& subStr);
 	static void Erase(std::string& source, const std::string& subStr);
 	static void StripSurrounding(std::string& source, const char c);

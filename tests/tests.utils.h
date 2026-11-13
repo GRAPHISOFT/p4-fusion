@@ -38,6 +38,26 @@ int TestUtils()
 	TEST(STDHelpers::StartsWith("//depot/path/", "//depot"), true);
 	TEST(STDHelpers::StartsWith("//depot/path/", "//_depot"), false);
 
+	TEST(STDHelpers::StartsWith("//Dev/main/Sources/a.cpp", "//Dev/Main/"), false);
+	TEST(STDHelpers::StartsWith("//Dev/main/Sources/a.cpp", "//Dev/Main/", false), false);
+	TEST(STDHelpers::StartsWith("//Dev/main/Sources/a.cpp", "//Dev/Main/", true), true);
+	TEST(STDHelpers::StartsWith("//DEV/MAIN/x", "//dev/main/"), false);
+	TEST(STDHelpers::StartsWith("//DEV/MAIN/x", "//dev/main/", true), true);
+	TEST(STDHelpers::StartsWith("//Dev/Main/x", "//Dev/Main/", false), true);
+	TEST(STDHelpers::StartsWith("//Dev/Main/x", "//Dev/Main/x", true), true);
+	TEST(STDHelpers::StartsWith("//Dev/Mainline/x", "//Dev/Main/", true), false);
+	TEST(STDHelpers::StartsWith("//Dev", "//Dev/Main", true), false);
+	TEST(STDHelpers::StartsWith("abc", "", true), true);
+
+	TEST(STDHelpers::Equals("Dev/Main", "dev/MAIN", true), true);
+	TEST(STDHelpers::Equals("Dev/Main", "dev/MAIN", false), false);
+	TEST(STDHelpers::Equals("Dev/Main", "dev/MAIN"), false);
+	TEST(STDHelpers::Equals("Dev/Main", "Dev/Main"), true);
+	TEST(STDHelpers::Equals("Dev/Main", "Dev/Main", false), true);
+	TEST(STDHelpers::Equals("Dev/Main", "Dev/Main/", true), false);
+	TEST(STDHelpers::Equals("Dev/Main", "Dev/Maim", true), false);
+	TEST(STDHelpers::Equals("", "", true), true);
+
 	TEST(STDHelpers::EndsWith("abc", "abc"), true);
 	TEST(STDHelpers::EndsWith("abc", "ab"), false);
 	TEST(STDHelpers::EndsWith("abc", "a"), false);

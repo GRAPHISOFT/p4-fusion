@@ -62,6 +62,7 @@ public:
 	std::string GetLogFolderPath() const { return GetParameter("--logFolderPath"); };
 	std::string GetNoMerge() const { return GetParameter("--noMerge"); };
 	std::string GetMergeDeletes() const { return GetParameter("--mergeDeletes"); };
+	std::string GetCaseHandling() const { return GetParameter("--caseHandling"); };
 	std::string GetStreamMappings() const { return GetParameter("--streamMappings"); };
 	std::vector<std::string> GetBranches() const { return GetParameterList("--branch"); };
 	std::vector<std::string> GetExcludes() const { return GetParameterList("--exclude"); };
