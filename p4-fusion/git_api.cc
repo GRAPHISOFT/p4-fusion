@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
+#include <functional>
 #include <stdexcept>
 #include <tuple>
 #include <sys/wait.h>
@@ -346,6 +347,14 @@ void GitAPI::AddFileToIndex(const std::string& relativePath, const std::vector<c
 
 	entry.path = pathNFC;
 
+	// The Graphisoft Perforce server is case-insensitive, so the same directory may arrive with different casing.
+	const std::string canonicalPath = CanonicalizeDirectoryCase(pathNFC);
+	if (canonicalPath != pathNFC)
+	{
+		PRINT_VERBOSE("Directory case canonicalized: " << pathNFC << " -> " << canonicalPath);
+		entry.path = canonicalPath.c_str();
+	}
+
 	GIT2(git_index_add_from_buffer(m_Index, &entry, contents.data(), contents.size()));
 }
 
@@ -357,7 +366,120 @@ void GitAPI::RemoveFileFromIndex(const std::string& relativePath)
 	char pathNFC[GIT_PATH_MAX];
 	GetStringAsNFC(relativePath, pathNFC, GIT_PATH_MAX);
 
-	GIT2(git_index_remove_bypath(m_Index, pathNFC));
+	// Prefer the exact path; fall back to the directory case the file was added with.
+	std::string path = pathNFC;
+	if (git_index_get_bypath(m_Index, pathNFC, 0) == nullptr)
+	{
+		path = CanonicalizeDirectoryCase(pathNFC);
+		if (path != pathNFC)
+		{
+			PRINT_VERBOSE("Directory case canonicalized: " << pathNFC << " -> " << path);
+		}
+	}
+
+	GIT2(git_index_remove_bypath(m_Index, path.c_str()));
+}
+
+// First index position whose path is not less than 'key'. The index is sorted by path in byte order.
+static size_t IndexLowerBound(git_index* index, const std::string& pathPrefix)
+{
+	size_t low = 0;
+	size_t high = git_index_entrycount(index);
+	while (low < high)
+	{
+		const size_t mid = low + (high - low) / 2;
+		if (strcmp(git_index_get_byindex(index, mid)->path, pathPrefix.c_str()) < 0)
+		{
+			low = mid + 1;
+		}
+		else
+		{
+			high = mid;
+		}
+	}
+	return low;
+}
+
+static size_t IndexUpperBoundExclusive(git_index* index, const std::string& pathPrefix)
+{
+	size_t pos = IndexLowerBound(index, pathPrefix + "0");	
+	return pos;
+}
+
+static bool GetExistingDirectoryName (const char* path, const std::string& prefixPath, std::string& directoryName)
+{
+	const char* existingChildStartPtr = path + prefixPath.size();
+	const char* existingChildEndPtr = strchr(existingChildStartPtr, '/');
+	if (existingChildEndPtr == nullptr)	// A file directly under the parent, not a directory.
+	{
+		return false;
+	}
+
+	directoryName = std::string (existingChildStartPtr, existingChildEndPtr - existingChildStartPtr);
+	return true;
+}
+
+bool GitAPI::FindDirectoryIgnoreCase(const std::string& parentPath, const std::string& childName, std::string& existingName)
+{
+	const size_t count = git_index_entrycount(m_Index);
+	const size_t firstParentPrefixIndex = IndexLowerBound(m_Index, parentPath);
+	size_t pos = firstParentPrefixIndex;
+	while (pos < count)
+	{
+		const char* entryPath = git_index_get_byindex(m_Index, pos)->path;
+		if (strncmp(entryPath, parentPath.c_str(), parentPath.size()) != 0)
+		{
+			break;	// The current entry no longer matches the parent path prefix, so we can stop searching.
+		}
+
+		std::string existingChildName;
+		if (!GetExistingDirectoryName(entryPath, parentPath, existingChildName))
+		{
+			pos++;	// Is not a directory
+			continue;
+		}
+
+		if (STDHelpers::EqualsIgnoreCase(existingChildName, childName))
+		{
+			existingName = existingChildName;
+			return true;
+		}
+
+		pos = IndexUpperBoundExclusive(m_Index, parentPath + existingChildName);
+	}
+	return false;
+}
+
+static void EnumeratePathParts(const std::string& relativePath, const std::function<bool(const std::string&, const std::string&)>& callback)
+{
+	size_t componentStart = 0;
+	size_t slash;
+	while ((slash = relativePath.find('/', componentStart)) != std::string::npos)
+	{
+		const std::string parentPath = relativePath.substr(0, componentStart);	// With backslash at the end
+		const std::string childName = relativePath.substr(componentStart, slash - componentStart);
+		if (!callback(parentPath, childName))
+			break;
+		componentStart = slash + 1;
+	}
+}
+
+std::string GitAPI::CanonicalizeDirectoryCase(const std::string& relativePath)
+{
+	std::string result = relativePath;
+
+	EnumeratePathParts (relativePath, [&](const std::string& parentPath, const std::string& childName) -> bool {
+		std::string existingName;
+		if (FindDirectoryIgnoreCase(parentPath, childName, existingName))
+		{
+			size_t replaceStartFrom = parentPath.size(); // parent size with backslash
+			result.replace(replaceStartFrom, existingName.size(), existingName);
+			return true;
+		}
+		return false;
+	});
+
+	return result;
 }
 
 static std::tuple<int, std::string> runCommand(const std::string& command)

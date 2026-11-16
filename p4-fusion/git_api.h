@@ -28,6 +28,8 @@ class GitAPI
 
 	std::string m_CurrentBranch = "";
 
+	bool FindDirectoryIgnoreCase(const std::string& parentPath, const std::string& directoryName, std::string& existingName);
+
 public:
 	GitAPI(bool fsyncEnable);
 	~GitAPI();
@@ -47,6 +49,11 @@ public:
 	void SetActiveBranch(const std::string& branchName);
 	void AddFileToIndex(const std::string& relativePath, const std::vector<char>& contents, const bool plusx);
 	void RemoveFileFromIndex(const std::string& relativePath);
+
+	/// Replaces the case of each directory in the path with the case of an already existing directory
+	/// in the index (the active branch's current state), if one exists with a different case.
+	/// The file name and directories not existing yet in any case are kept as they are.
+	std::string CanonicalizeDirectoryCase(const std::string& relativePath);
 
 	bool RepackWithSystemCommand(const std::string& repoPath, bool incrementalRepack);
 

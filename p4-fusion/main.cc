@@ -629,16 +629,20 @@ int Main(int argc, char** argv)
 				git.SetActiveBranch(branchGroup.targetBranch);
 			}
 
+			// Deletes first, so a directory emptied by this changelist can take a new case from the files it adds.
 			for (auto& file : branchGroup.files)
 			{
-				std::string unescapedPath = P4Unescape(file.GetRelativeDepotPath());
 				if (file.IsDeleted())
 				{
-					git.RemoveFileFromIndex(unescapedPath);
+					git.RemoveFileFromIndex(P4Unescape(file.GetRelativeDepotPath()));
 				}
-				else
+			}
+
+			for (auto& file : branchGroup.files)
+			{
+				if (!file.IsDeleted())
 				{
-					git.AddFileToIndex(unescapedPath, file.GetContents(), file.IsExecutable());
+					git.AddFileToIndex(P4Unescape(file.GetRelativeDepotPath()), file.GetContents(), file.IsExecutable());
 				}
 
 				// No use for keeping the contents in memory once it has been added
