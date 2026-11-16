@@ -14,6 +14,7 @@ int main()
 {
 	TEST_REPORT("Utils", TestUtils());
 	TEST_REPORT("GitAPI", TestGitAPI());
+	TEST_REPORT("GitAPI directory case", TestGitDirectoryCase());
 
 	SUCCESS("All test cases passed");
 	return 0;
