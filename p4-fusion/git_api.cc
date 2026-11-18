@@ -439,7 +439,7 @@ bool GitAPI::FindDirectoryIgnoreCase(const std::string& parentPath, const std::s
 			continue;
 		}
 
-		if (STDHelpers::EqualsIgnoreCase(existingChildName, childName))
+		if (STDHelpers::Equals(existingChildName, childName, true))
 		{
 			existingName = existingChildName;
 			return true;
@@ -456,7 +456,7 @@ static void EnumeratePathParts(const std::string& relativePath, const std::funct
 	size_t slash;
 	while ((slash = relativePath.find('/', componentStart)) != std::string::npos)
 	{
-		const std::string parentPath = relativePath.substr(0, componentStart);	// With backslash at the end
+		const std::string parentPath = relativePath.substr(0, componentStart);	// With slash at the end
 		const std::string childName = relativePath.substr(componentStart, slash - componentStart);
 		if (!callback(parentPath, childName))
 			break;
@@ -472,7 +472,7 @@ std::string GitAPI::CanonicalizeDirectoryCase(const std::string& relativePath)
 		std::string existingName;
 		if (FindDirectoryIgnoreCase(parentPath, childName, existingName))
 		{
-			size_t replaceStartFrom = parentPath.size(); // parent size with backslash
+			size_t replaceStartFrom = parentPath.size(); // parent size with slash
 			result.replace(replaceStartFrom, existingName.size(), existingName);
 			return true;
 		}
