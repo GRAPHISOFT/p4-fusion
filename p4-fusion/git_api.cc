@@ -414,20 +414,20 @@ static size_t IndexLowerBound(git_index* index, const std::string& pathPrefix)
 
 static size_t IndexUpperBoundExclusive(git_index* index, const std::string& pathPrefix)
 {
-	size_t pos = IndexLowerBound(index, pathPrefix + "0");	
+	size_t pos = IndexLowerBound(index, pathPrefix + "0");
 	return pos;
 }
 
-static bool GetExistingDirectoryName (const char* path, const std::string& prefixPath, std::string& directoryName)
+static bool GetExistingDirectoryName(const char* path, const std::string& prefixPath, std::string& directoryName)
 {
 	const char* existingChildStartPtr = path + prefixPath.size();
 	const char* existingChildEndPtr = strchr(existingChildStartPtr, '/');
-	if (existingChildEndPtr == nullptr)	// A file directly under the parent, not a directory.
+	if (existingChildEndPtr == nullptr) // A file directly under the parent, not a directory.
 	{
 		return false;
 	}
 
-	directoryName = std::string (existingChildStartPtr, existingChildEndPtr - existingChildStartPtr);
+	directoryName = std::string(existingChildStartPtr, existingChildEndPtr - existingChildStartPtr);
 	return true;
 }
 
@@ -442,19 +442,19 @@ bool GitAPI::FindDirectoryIgnoreCase(const std::string& parentPath, const std::s
 		const std::string entryPath = git_index_get_byindex(m_Index, pos)->path;
 		if (!STDHelpers::StartsWith(entryPath, parentPath, ignoreCase))
 		{
-			break;	// The current entry no longer matches the parent path prefix, so we can stop searching.
+			break; // The current entry no longer matches the parent path prefix, so we can stop searching.
 		}
 
 		if (ignoreCase && !STDHelpers::StartsWith(entryPath, parentPath))
 		{
-			pos++;	// Case-insensitive index: entry of a parent directory with a different case
+			pos++; // Case-insensitive index: entry of a parent directory with a different case
 			continue;
 		}
 
 		std::string existingChildName;
 		if (!GetExistingDirectoryName(entryPath.c_str(), parentPath, existingChildName))
 		{
-			pos++;	// Is not a directory
+			pos++; // Is not a directory
 			continue;
 		}
 
@@ -475,7 +475,7 @@ static void EnumeratePathParts(const std::string& relativePath, const std::funct
 	size_t slash;
 	while ((slash = relativePath.find('/', componentStart)) != std::string::npos)
 	{
-		const std::string parentPath = relativePath.substr(0, componentStart);	// With slash at the end
+		const std::string parentPath = relativePath.substr(0, componentStart); // With slash at the end
 		const std::string childName = relativePath.substr(componentStart, slash - componentStart);
 		if (!callback(parentPath, childName))
 			break;
@@ -487,7 +487,8 @@ std::string GitAPI::CanonicalizeDirectoryCase(const std::string& relativePath)
 {
 	std::string result = relativePath;
 
-	EnumeratePathParts (relativePath, [&](const std::string& parentPath, const std::string& childName) -> bool {
+	EnumeratePathParts(relativePath, [&](const std::string& parentPath, const std::string& childName) -> bool
+	    {
 		const std::string canonicalParent = result.substr(0, parentPath.size());
 		std::string existingName;
 		if (FindDirectoryIgnoreCase(canonicalParent, childName, existingName))
@@ -496,8 +497,7 @@ std::string GitAPI::CanonicalizeDirectoryCase(const std::string& relativePath)
 			result.replace(replaceStartFrom, existingName.size(), existingName);
 			return true;
 		}
-		return false;
-	});
+		return false; });
 
 	return result;
 }
