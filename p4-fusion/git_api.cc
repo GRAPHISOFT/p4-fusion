@@ -469,8 +469,9 @@ std::string GitAPI::CanonicalizeDirectoryCase(const std::string& relativePath)
 	std::string result = relativePath;
 
 	EnumeratePathParts (relativePath, [&](const std::string& parentPath, const std::string& childName) -> bool {
+		const std::string canonicalParent = result.substr(0, parentPath.size());
 		std::string existingName;
-		if (FindDirectoryIgnoreCase(parentPath, childName, existingName))
+		if (FindDirectoryIgnoreCase(canonicalParent, childName, existingName))
 		{
 			size_t replaceStartFrom = parentPath.size(); // parent size with slash
 			result.replace(replaceStartFrom, existingName.size(), existingName);
