@@ -14,6 +14,7 @@
 #include <cerrno>
 #include <functional>
 #include <stdexcept>
+#include <strings.h>
 #include <tuple>
 #include <sys/wait.h>
 
@@ -380,7 +381,18 @@ void GitAPI::RemoveFileFromIndex(const std::string& relativePath)
 	GIT2(git_index_remove_bypath(m_Index, path.c_str()));
 }
 
-// First index position whose path is not less than 'key'. The index is sorted by path in byte order.
+// With core.ignorecase set, libgit2 sorts the index with strcasecmp instead of byte order.
+static bool IsIndexIgnoreCase(git_index* index)
+{
+	return (git_index_caps(index) & GIT_INDEX_CAPABILITY_IGNORE_CASE) != 0;
+}
+
+static int ComparePaths(git_index* index, const char* left, const char* right)
+{
+	return IsIndexIgnoreCase(index) ? strcasecmp(left, right) : strcmp(left, right);
+}
+
+// First index position whose path is not less than 'key', in the sort order of the index.
 static size_t IndexLowerBound(git_index* index, const std::string& pathPrefix)
 {
 	size_t low = 0;
@@ -388,7 +400,7 @@ static size_t IndexLowerBound(git_index* index, const std::string& pathPrefix)
 	while (low < high)
 	{
 		const size_t mid = low + (high - low) / 2;
-		if (strcmp(git_index_get_byindex(index, mid)->path, pathPrefix.c_str()) < 0)
+		if (ComparePaths(index, git_index_get_byindex(index, mid)->path, pathPrefix.c_str()) < 0)
 		{
 			low = mid + 1;
 		}
@@ -422,18 +434,25 @@ static bool GetExistingDirectoryName (const char* path, const std::string& prefi
 bool GitAPI::FindDirectoryIgnoreCase(const std::string& parentPath, const std::string& childName, std::string& existingName)
 {
 	const size_t count = git_index_entrycount(m_Index);
+	const bool ignoreCase = IsIndexIgnoreCase(m_Index);
 	const size_t firstParentPrefixIndex = IndexLowerBound(m_Index, parentPath);
 	size_t pos = firstParentPrefixIndex;
 	while (pos < count)
 	{
-		const char* entryPath = git_index_get_byindex(m_Index, pos)->path;
-		if (strncmp(entryPath, parentPath.c_str(), parentPath.size()) != 0)
+		const std::string entryPath = git_index_get_byindex(m_Index, pos)->path;
+		if (!STDHelpers::StartsWith(entryPath, parentPath, ignoreCase))
 		{
 			break;	// The current entry no longer matches the parent path prefix, so we can stop searching.
 		}
 
+		if (ignoreCase && !STDHelpers::StartsWith(entryPath, parentPath))
+		{
+			pos++;	// Case-insensitive index: entry of a parent directory with a different case
+			continue;
+		}
+
 		std::string existingChildName;
-		if (!GetExistingDirectoryName(entryPath, parentPath, existingChildName))
+		if (!GetExistingDirectoryName(entryPath.c_str(), parentPath, existingChildName))
 		{
 			pos++;	// Is not a directory
 			continue;
