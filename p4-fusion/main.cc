@@ -72,6 +72,8 @@ int Main(int argc, char** argv)
 	                                                              "\t\tExclude a specific file: --exclude \"//Tools/Development/BModule/OpenCppCoverageSetup-x64-0.9.9.0.exe\"\n");
 	Arguments::GetSingleton()->OptionalParameter("--excludeLog", "false", "Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
+	Arguments::GetSingleton()->OptionalParameterList("--gitAttribute", "A line to be written into the .gitattributes file of the initial commit, e.g. \"* text=auto eol=lf\". Can be specified more than once, each value becomes a new line. "
+	                                                                   "When continuing an existing repository, its .gitattributes must contain all the given lines.");
 	Arguments::GetSingleton()->OptionalParameterList("--lfsSpec", "Path spec for files to be handled by Git LFS. Can be specified more than once.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsUsername", "", "Git LFS username for basic access authentication.");
@@ -563,7 +565,9 @@ int Main(int argc, char** argv)
 		startupDownloadsCount++;
 	}
 
-	git.CreateIndex(lfsClient.get());
+	const std::vector<std::string> gitAttributes = Arguments::GetSingleton()->GetGitAttributes();
+
+	git.CreateIndex(gitAttributes, lfsClient.get());
 	SUCCESS("Queued first " << startupDownloadsCount << " CLs up until CL " << changes.at(lastDownloadedCL).number << " for downloading");
 
 	int timezoneMinutes = p4.Info()->GetServerTimezoneMinutes();

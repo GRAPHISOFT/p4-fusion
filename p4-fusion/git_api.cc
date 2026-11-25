@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
+#include <regex>
 #include <stdexcept>
 #include <tuple>
 #include <sys/wait.h>
@@ -25,6 +26,13 @@
 
 namespace
 {
+
+static bool ContainsLine(const std::string& text, const std::string& line)
+{
+	static const std::regex specialCharsPattern(R"([.^$|()\[\]{}*+?\\])");
+	const std::string escapedLine = std::regex_replace(line, specialCharsPattern, R"(\$&)"); // Escape regex special characters before search
+	return std::regex_search(text, std::regex("(^|\n)" + escapedLine + "\r?(\n|$)"));
+}
 
 static void GetStringAsNFC(const std::string& str, char* buffer, size_t bufferLength)
 {
@@ -221,7 +229,37 @@ std::string GitAPI::DetectLatestCL()
 	return cl;
 }
 
-void GitAPI::CreateIndex(LFSClient* lfsClient)
+std::string GitAPI::ReadFirstCommitGitAttributes() const
+{
+	git_commit* firstCommit = nullptr;
+	GIT2(git_commit_lookup(&firstCommit, m_Repo, &m_FirstCommitOid));
+
+	git_tree* tree = nullptr;
+	GIT2(git_commit_tree(&tree, firstCommit));
+
+	std::string contents;
+	git_tree_entry* entry = nullptr;
+	int errorCode = git_tree_entry_bypath(&entry, tree, ".gitattributes");
+	if (errorCode == 0)
+	{
+		git_blob* blob = nullptr;
+		GIT2(git_blob_lookup(&blob, m_Repo, git_tree_entry_id(entry)));
+		contents.assign((const char*)git_blob_rawcontent(blob), (size_t)git_blob_rawsize(blob));
+		git_blob_free(blob);
+		git_tree_entry_free(entry);
+	}
+	else if (errorCode != GIT_ENOTFOUND)
+	{
+		GIT2(errorCode);
+	}
+
+	git_tree_free(tree);
+	git_commit_free(firstCommit);
+
+	return contents;
+}
+
+void GitAPI::CreateIndex(const std::vector<std::string>& gitAttributes, LFSClient* lfsClient)
 {
 	MTR_SCOPE("Git", __func__);
 
@@ -253,42 +291,39 @@ void GitAPI::CreateIndex(LFSClient* lfsClient)
 
 		WARN("Loaded index was refreshed to match the tree of the current HEAD commit");
 
-		// If LFS is enabled, check if the existing repo was initially created with LFS support
-		if (lfsClient)
+		// Check that the existing repo was initially created with the same .gitattributes rules
+		const std::string existingGitAttributesContent = ReadFirstCommitGitAttributes();
+		for (const std::string& gitAttribute : gitAttributes)
 		{
-			git_commit* firstCommit = nullptr;
-			GIT2(git_commit_lookup(&firstCommit, m_Repo, &m_FirstCommitOid));
-
-			git_tree* tree = nullptr;
-			GIT2(git_commit_tree(&tree, firstCommit));
-
-			git_tree_entry* entry = nullptr;
-			int errorCode = git_tree_entry_bypath(&entry, tree, ".gitattributes");
-			if (errorCode == GIT_ENOTFOUND)
+			if (!ContainsLine(existingGitAttributesContent, gitAttribute))
 			{
-				ERR("GitAPI: LFS support was requested, but existing repo was not created with it!");
-
-				git_tree_free(tree);
-				git_commit_free(firstCommit);
-
-				exit(errorCode);
+				ERR("GitAPI: Existing repo was not created with the requested .gitattributes line: " << gitAttribute);
+				exit(GIT_ENOTFOUND);
 			}
-			else if (errorCode != 0)
-			{
-				GIT2(errorCode);
-			}
-
-			git_tree_entry_free(entry);
-			git_tree_free(tree);
-			git_commit_free(firstCommit);
+		}
+		if (lfsClient && existingGitAttributesContent.find("filter=lfs") == std::string::npos)
+		{
+			ERR("GitAPI: LFS support was requested, but existing repo was not created with it!");
+			exit(GIT_ENOTFOUND);
 		}
 	}
 	else
 	{
-		// Add .gitattributes file and url configuration if LFS is enabled
+		// Add .gitattributes file with the requested lines, followed by the LFS rules if LFS is enabled.
+		// LFS rules come last, so their "-text" overrides the earlier rules for LFS tracked files.
+		std::vector<char> gitAttrContents;
+		for (const std::string& gitAttribute : gitAttributes)
+		{
+			gitAttrContents.insert(gitAttrContents.end(), gitAttribute.begin(), gitAttribute.end());
+			gitAttrContents.push_back('\n');
+		}
 		if (lfsClient)
 		{
-			auto gitAttrContents = lfsClient->GetGitAttributesContents();
+			const auto lfsAttrContents = lfsClient->GetGitAttributesContents();
+			gitAttrContents.insert(gitAttrContents.end(), lfsAttrContents.begin(), lfsAttrContents.end());
+		}
+		if (!gitAttrContents.empty())
+		{
 			git_index_entry entry = {};
 			entry.mode = GIT_FILEMODE_BLOB;
 			entry.path = ".gitattributes";

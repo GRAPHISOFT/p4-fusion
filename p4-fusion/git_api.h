@@ -28,6 +28,8 @@ class GitAPI
 
 	std::string m_CurrentBranch = "";
 
+	std::string ReadFirstCommitGitAttributes() const;
+
 public:
 	GitAPI(bool fsyncEnable);
 	~GitAPI();
@@ -43,7 +45,7 @@ public:
 
 	UniqueGitPathSpec CreatePathSpec(const std::vector<std::string>& patterns);
 
-	void CreateIndex(LFSClient* lfsClient);
+	void CreateIndex(const std::vector<std::string>& gitAttributes, LFSClient* lfsClient);
 	void SetActiveBranch(const std::string& branchName);
 	void AddFileToIndex(const std::string& relativePath, const std::vector<char>& contents, const bool plusx);
 	void RemoveFileFromIndex(const std::string& relativePath);

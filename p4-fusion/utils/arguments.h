@@ -67,6 +67,7 @@ public:
 	std::vector<std::string> GetBranches() const { return GetParameterList("--branch"); };
 	std::vector<std::string> GetExcludes() const { return GetParameterList("--exclude"); };
 	std::string GetExcludeLog() const { return GetParameter("--excludeLog"); };
+	std::vector<std::string> GetGitAttributes() const { return GetParameterList("--gitAttribute"); }
 	std::vector<std::string> GetLFSSpecs() const { return GetParameterList("--lfsSpec"); }
 	std::string GetLFSServerUrl() const { return GetParameter("--lfsServerUrl"); }
 	std::string GetLFSUsername() const { return GetParameter("--lfsUsername"); }

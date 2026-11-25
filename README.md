@@ -49,6 +49,9 @@ These execution times are expected to scale as expected with larger depots (mill
 --fsyncEnable [Optional, Default is false]
         Enable fsync() while writing objects to disk to ensure they get written to permanent storage immediately instead of being cached. This is to mitigate data loss in events of hardware failure.
 
+--gitAttribute [Optional, Default is empty]
+        A line to be written into the .gitattributes file of the initial commit, e.g. "* text=auto eol=lf". Can be specified more than once, each value becomes a new line. When continuing an existing repository, its .gitattributes must contain all the given lines.
+
 --includeBinaries [Optional, Default is false]
         Do not discard binary files while downloading changelists.
 
@@ -190,6 +193,18 @@ A side effect of stream mapping mode is that you can use stream mappings to excl
 
  - If there is a cycle in the mapping graph this mode will break.
  - If the contents of a subdirectory were at one stage part of the parent stream and are now being mapped in (or vice versa) there is a possibility that the files may not exist in the git history. (this is a file-by-file basis if you have several paths mapped into one directory and have files in the parent stream in the same directory, it will be fine provided the file names are all unique to that stream.)
+
+## Notes on .gitattributes
+
+The `.gitattributes` file of the initial commit is built from the `--gitAttribute` values, one line each, in the given order. When LFS is enabled, the LFS rules generated from `--lfsSpec` are appended after these lines. If neither is given, no `.gitattributes` file is created. File contents are committed as received from Perforce, without line ending conversion.
+
+For example, to store and check out text files with LF line endings (the equivalent of the Perforce `Shared: Writes UNIX style and reads local style` line ending setting), except for Windows specific file types that need CRLF in the working tree:
+
+```shell
+--gitAttribute "* text=auto eol=lf" --gitAttribute "*.vcxproj text eol=crlf" --gitAttribute "*.bat text eol=crlf"
+```
+
+When continuing the conversion of an existing repository, p4-fusion stops with an error if the `.gitattributes` file of its first commit does not contain every `--gitAttribute` line, or, when LFS is enabled, does not contain LFS rules.
 
 ## Checking Results
 
