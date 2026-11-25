@@ -38,6 +38,7 @@ public:
 	void OpenRepository(const std::string& repoPath);
 
 	bool IsHEADExists();
+	bool IsBranchExists(const std::string& branchName);
 	std::string GetDepotPathFromLastCommit() const;
 	std::string DetectLatestCL();
 

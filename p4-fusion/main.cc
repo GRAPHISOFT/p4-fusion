@@ -624,6 +624,29 @@ int Main(int argc, char** argv)
 
 		for (auto& branchGroup : cl.changedFileGroups->branchedFileGroups)
 		{
+			std::vector<std::string> canonicalFilePaths(branchGroup.files.size());
+			for (size_t i = 0; i < branchGroup.files.size(); i++)
+			{
+				if (!branchGroup.files[i].IsDeleted())
+				{
+					canonicalFilePaths[i] = P4Unescape(branchGroup.files[i].GetRelativeDepotPath());
+				}
+			}
+
+			// Take the directory case from the integration source, so directories new to the target branch get the
+			// same paths as in the merge parent and keep their history.
+			if (branchGroup.hasSource && !branchGroup.targetBranch.empty() && git.IsBranchExists(branchGroup.sourceBranch))
+			{
+				git.SetActiveBranch(branchGroup.sourceBranch);
+				for (auto& path : canonicalFilePaths)
+				{
+					if (!path.empty())
+					{
+						path = git.CanonicalizeDirectoryCase(path);
+					}
+				}
+			}
+
 			if (!branchGroup.targetBranch.empty())
 			{
 				git.SetActiveBranch(branchGroup.targetBranch);
@@ -638,11 +661,12 @@ int Main(int argc, char** argv)
 				}
 			}
 
-			for (auto& file : branchGroup.files)
+			for (size_t i = 0; i < branchGroup.files.size(); i++)
 			{
+				auto& file = branchGroup.files[i];
 				if (!file.IsDeleted())
 				{
-					git.AddFileToIndex(P4Unescape(file.GetRelativeDepotPath()), file.GetContents(), file.IsExecutable());
+					git.AddFileToIndex(canonicalFilePaths[i], file.GetContents(), file.IsExecutable());
 				}
 
 				// No use for keeping the contents in memory once it has been added

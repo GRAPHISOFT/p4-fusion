@@ -124,6 +124,20 @@ bool GitAPI::IsHEADExists()
 	return errorCode == 0;
 }
 
+bool GitAPI::IsBranchExists(const std::string& branchName)
+{
+	if (branchName.empty())
+		return false;
+
+	git_oid oid;
+	int errorCode = git_reference_name_to_id(&oid, m_Repo, ("refs/heads/" + branchName).c_str());
+	if (errorCode && errorCode != GIT_ENOTFOUND)
+	{
+		GIT2(errorCode);
+	}
+	return errorCode == 0;
+}
+
 void GitAPI::SetActiveBranch(const std::string& branchName)
 {
 	if (branchName == m_CurrentBranch)
