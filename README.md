@@ -117,7 +117,7 @@ These execution times are expected to scale as expected with larger depots (mill
         Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.
 
 --lfsSpec [Optional, Default is empty]
-        Path spec for files to be handled by Git LFS. Can be specified more than once.
+        Path spec for files to be handled by Git LFS. Can be specified more than once. A path spec starting with '!' excludes the matching files from Git LFS, even if they match another path spec, e.g. --lfsSpec "*.dat" --lfsSpec "!BuildNum.dat".
 
 --lfsServerUrl [Optional, Default is empty string]
         URL of the Git LFS server to use for uploading files with basic transfer.
@@ -204,7 +204,22 @@ For example, to store and check out text files with LF line endings (the equival
 --gitAttribute "* text=auto eol=lf" --gitAttribute "*.vcxproj text eol=crlf" --gitAttribute "*.bat text eol=crlf"
 ```
 
-When continuing the conversion of an existing repository, p4-fusion stops with an error if the `.gitattributes` file of its first commit does not contain every `--gitAttribute` line, or, when LFS is enabled, does not contain LFS rules.
+When continuing the conversion of an existing repository, p4-fusion stops with an error if the `.gitattributes` file of its first commit does not contain every `--gitAttribute` line and, when LFS is enabled, every LFS line generated from `--lfsSpec`. Changing these options requires a fresh conversion.
+
+### Excluding files from LFS
+
+An `--lfsSpec` starting with `!` excludes the matching files from LFS, regardless of the order of the `--lfsSpec` options. These files are committed directly to the Git repository, and a line removing the LFS attributes is appended after the LFS lines. For example, to store every `.dat` file in LFS except `BuildNum.dat`:
+
+```shell
+--lfsSpec "*.[dD][aA][tT]" --lfsSpec "!BuildNum.dat"
+```
+
+generates:
+
+```
+*.[dD][aA][tT] filter=lfs diff=lfs merge=lfs -text
+BuildNum.dat !filter !diff !merge text=auto
+```
 
 ## Checking Results
 

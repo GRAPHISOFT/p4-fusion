@@ -263,6 +263,15 @@ void GitAPI::CreateIndex(const std::vector<std::string>& gitAttributes, LFSClien
 {
 	MTR_SCOPE("Git", __func__);
 
+	// The requested lines come first, followed by the LFS rules if LFS is enabled.
+	// LFS rules come last, so their "-text" overrides the earlier rules for LFS tracked files.
+	std::vector<std::string> gitAttributesLines = gitAttributes;
+	if (lfsClient)
+	{
+		const std::vector<std::string> lfsLines = lfsClient->GetGitAttributesLines();
+		gitAttributesLines.insert(gitAttributesLines.end(), lfsLines.begin(), lfsLines.end());
+	}
+
 	GIT2(git_repository_index(&m_Index, m_Repo));
 
 	if (IsHEADExists())
@@ -293,34 +302,21 @@ void GitAPI::CreateIndex(const std::vector<std::string>& gitAttributes, LFSClien
 
 		// Check that the existing repo was initially created with the same .gitattributes rules
 		const std::string existingGitAttributesContent = ReadFirstCommitGitAttributes();
-		for (const std::string& gitAttribute : gitAttributes)
+		for (const std::string& line : gitAttributesLines)
 		{
-			if (!ContainsLine(existingGitAttributesContent, gitAttribute))
+			if (!ContainsLine(existingGitAttributesContent, line))
 			{
-				ERR("GitAPI: Existing repo was not created with the requested .gitattributes line: " << gitAttribute);
+				ERR("GitAPI: Existing repo was not created with the requested .gitattributes line: " << line);
 				exit(GIT_ENOTFOUND);
 			}
-		}
-		if (lfsClient && existingGitAttributesContent.find("filter=lfs") == std::string::npos)
-		{
-			ERR("GitAPI: LFS support was requested, but existing repo was not created with it!");
-			exit(GIT_ENOTFOUND);
 		}
 	}
 	else
 	{
-		// Add .gitattributes file with the requested lines, followed by the LFS rules if LFS is enabled.
-		// LFS rules come last, so their "-text" overrides the earlier rules for LFS tracked files.
-		std::vector<char> gitAttrContents;
-		for (const std::string& gitAttribute : gitAttributes)
+		std::string gitAttrContents;
+		for (const std::string& line : gitAttributesLines)
 		{
-			gitAttrContents.insert(gitAttrContents.end(), gitAttribute.begin(), gitAttribute.end());
-			gitAttrContents.push_back('\n');
-		}
-		if (lfsClient)
-		{
-			const auto lfsAttrContents = lfsClient->GetGitAttributesContents();
-			gitAttrContents.insert(gitAttrContents.end(), lfsAttrContents.begin(), lfsAttrContents.end());
+			gitAttrContents += line + "\n";
 		}
 		if (!gitAttrContents.empty())
 		{
