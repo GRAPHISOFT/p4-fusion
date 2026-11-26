@@ -75,7 +75,7 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->OptionalParameterList("--gitAttribute", "A line to be written into the .gitattributes file of the initial commit, e.g. \"* text=auto eol=lf\". Can be specified more than once, each value becomes a new line. "
 	                                                                   "When continuing an existing repository, its .gitattributes must contain all the given lines.");
 	Arguments::GetSingleton()->OptionalParameterList("--lfsSpec", "Path spec for files to be handled by Git LFS. Can be specified more than once. "
-	                                                              "A path spec starting with '!' excludes the matching files from Git LFS, even if they match another path spec, e.g. --lfsSpec \"*.dat\" --lfsSpec \"!BuildNum.dat\".");
+	                                                              "A path spec starting with '!' excludes the matching files from Git LFS, even if they match another path spec, e.g. --lfsSpec \"*.dat\" --lfsSpec \"!Sources/BuildNum.dat\".");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsUsername", "", "Git LFS username for basic access authentication.");
 	Arguments::GetSingleton()->OptionalParameter("--lfsPassword", "", "Git LFS password for basic access authentication.");
