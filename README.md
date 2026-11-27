@@ -166,7 +166,7 @@ If the Perforce tree contains sub-branches, such as `//base/tree/sub` being a su
 
 ## Notes on stream mapping mode
 
-Stream Mapping mode is disabled by default, it makes it so that Perforce Stream Views and Paths [link](https://www.perforce.com/manuals/p4guide/Content/P4Guide/streams.paths.html) are treated as part of the of the depot in which the stream view is mapped. This can include completely out-of-tree depots with no shared path deeper than `//...` it commits everything to the master branch (Using it with branching mode is untested)
+Stream Mapping mode is disabled by default, it makes it so that Perforce Stream Views and Paths [link](https://www.perforce.com/manuals/p4guide/Content/P4Guide/streams.paths.html) are treated as part of the of the depot in which the stream view is mapped. This can include completely out-of-tree depots with no shared path deeper than `//...` it commits everything to the main branch (Using it with branching mode is untested)
 lets assume that you have some depots
 ```
 //A/foo/...
@@ -256,7 +256,7 @@ E.g. You can build tests and at the same time enable profiling by running `./gen
 
 There should be a Git repo being created in the `clones/.git` directory with commits being created as the tool runs.
 
-> Note: The Git repository is created bare i.e. without a working directory and running the same command again shall detect the last committed CL and only continue from that CL onwards. Binaries files are ignored by default and this behaviour can be changed by using the `--includeBinaries` option. We do not handle `.git` directories in the Perforce history.
+> Note: The Git repository is created bare i.e. without a working directory, and its initial branch is `main`. Running the same command again shall detect the last committed CL and only continue from that CL onwards. Binaries files are ignored by default and this behaviour can be changed by using the `--includeBinaries` option. We do not handle `.git` directories in the Perforce history.
 
 ## Contributing
 
