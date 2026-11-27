@@ -105,7 +105,10 @@ void GitAPI::OpenRepository(const std::string& repoPath)
 
 bool GitAPI::InitializeRepository(const std::string& srcPath)
 {
-	GIT2(git_repository_init(&m_Repo, srcPath.c_str(), true));
+	git_repository_init_options options = GIT_REPOSITORY_INIT_OPTIONS_INIT;
+	options.flags = GIT_REPOSITORY_INIT_MKPATH | GIT_REPOSITORY_INIT_BARE;
+	options.initial_head = "main";
+	GIT2(git_repository_init_ext(&m_Repo, srcPath.c_str(), &options));
 	SUCCESS("Initialized Git repository at " << srcPath);
 
 	return true;
