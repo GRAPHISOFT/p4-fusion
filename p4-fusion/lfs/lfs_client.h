@@ -27,7 +27,7 @@ public:
 
 	bool IsLFSTracked(const std::string& filePath) const;
 
-	std::vector<char> GetGitAttributesContents() const;
+	std::vector<std::string> GetGitAttributesLines() const;
 
 private:
 	GitAPI& m_GitAPI;
@@ -35,5 +35,7 @@ private:
 	std::unique_ptr<Communicator> m_Communicator;
 
 	std::vector<std::string> m_LFSPatterns;
+	std::vector<std::string> m_LFSExcludePatterns; // Patterns given as "!pattern", stored without the '!'
 	UniqueGitPathSpec m_LFSPathSpec;
+	UniqueGitPathSpec m_LFSExcludePathSpec;
 };

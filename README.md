@@ -49,6 +49,9 @@ These execution times are expected to scale as expected with larger depots (mill
 --fsyncEnable [Optional, Default is false]
         Enable fsync() while writing objects to disk to ensure they get written to permanent storage immediately instead of being cached. This is to mitigate data loss in events of hardware failure.
 
+--gitAttribute [Optional, Default is empty]
+        A line to be written into the .gitattributes file of the initial commit, e.g. "* text=auto eol=lf". Can be specified more than once, each value becomes a new line. When continuing an existing repository, its .gitattributes must match exactly the one generated from the given --gitAttribute and --lfsSpec options.
+
 --includeBinaries [Optional, Default is false]
         Do not discard binary files while downloading changelists.
 
@@ -114,7 +117,7 @@ These execution times are expected to scale as expected with larger depots (mill
         Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.
 
 --lfsSpec [Optional, Default is empty]
-        Path spec for files to be handled by Git LFS. Can be specified more than once.
+        Path spec for files to be handled by Git LFS. Can be specified more than once. A path spec starting with '!' excludes the matching files from Git LFS, even if they match another path spec, e.g. --lfsSpec "*.dat" --lfsSpec "!Sources/BuildNum.dat".
 
 --lfsServerUrl [Optional, Default is empty string]
         URL of the Git LFS server to use for uploading files with basic transfer.
@@ -190,6 +193,33 @@ A side effect of stream mapping mode is that you can use stream mappings to excl
 
  - If there is a cycle in the mapping graph this mode will break.
  - If the contents of a subdirectory were at one stage part of the parent stream and are now being mapped in (or vice versa) there is a possibility that the files may not exist in the git history. (this is a file-by-file basis if you have several paths mapped into one directory and have files in the parent stream in the same directory, it will be fine provided the file names are all unique to that stream.)
+
+## Notes on .gitattributes
+
+The `.gitattributes` file of the initial commit is built from the `--gitAttribute` values, one line each, in the given order. When LFS is enabled, the LFS rules generated from `--lfsSpec` are appended after these lines. If neither is given, no `.gitattributes` file is created. File contents are committed as received from Perforce, without line ending conversion.
+
+For example, to store and check out text files with LF line endings (the equivalent of the Perforce `Shared: Writes UNIX style and reads local style` line ending setting), except for Windows specific file types that need CRLF in the working tree:
+
+```shell
+--gitAttribute "* text=auto eol=lf" --gitAttribute "*.vcxproj text eol=crlf" --gitAttribute "*.bat text eol=crlf"
+```
+
+When continuing the conversion of an existing repository, p4-fusion stops with an error if the `.gitattributes` file of its first commit is not exactly the one generated from the given `--gitAttribute` and `--lfsSpec` options, in the same order. This also catches removed or added LFS exclusions. Changing these options requires a fresh conversion.
+
+### Excluding files from LFS
+
+An `--lfsSpec` starting with `!` excludes the matching files from LFS, regardless of the order of the `--lfsSpec` options. These files are committed directly to the Git repository, and a line removing the LFS attributes is appended after the LFS lines. For an exact file exclusion, specify its full path relative to the repository root; a bare filename does not match files in subdirectories during conversion. For example:
+
+```shell
+--lfsSpec "*.[dD][aA][tT]" --lfsSpec "!Sources/BuildNum.dat"
+```
+
+generates:
+
+```
+*.[dD][aA][tT] filter=lfs diff=lfs merge=lfs -text
+Sources/BuildNum.dat !filter !diff !merge text=auto
+```
 
 ## Checking Results
 

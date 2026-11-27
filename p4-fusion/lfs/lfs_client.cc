@@ -9,11 +9,32 @@
 #include "lfs/communication/lfscomm.h"
 #include "lfs/communication/s3comm.h"
 
+namespace
+{
+
+std::vector<std::string> SelectPatterns(const std::vector<std::string>& lfsPatterns, bool exclude)
+{
+	std::vector<std::string> result;
+	for (const std::string& pattern : lfsPatterns)
+	{
+		const bool isExclude = !pattern.empty() && pattern[0] == '!';
+		if (isExclude == exclude)
+		{
+			result.push_back(isExclude ? pattern.substr(1) : pattern);
+		}
+	}
+	return result;
+}
+
+}
+
 LFSClient::LFSClient(GitAPI& gitAPI, std::unique_ptr<Communicator> communicator, const std::vector<std::string>& lfsPatterns)
     : m_GitAPI(gitAPI)
     , m_Communicator(std::move(communicator))
-    , m_LFSPatterns(lfsPatterns)
-    , m_LFSPathSpec(m_GitAPI.CreatePathSpec(lfsPatterns))
+    , m_LFSPatterns(SelectPatterns(lfsPatterns, false))
+    , m_LFSExcludePatterns(SelectPatterns(lfsPatterns, true))
+    , m_LFSPathSpec(m_GitAPI.CreatePathSpec(m_LFSPatterns))
+    , m_LFSExcludePathSpec(m_GitAPI.CreatePathSpec(m_LFSExcludePatterns))
 {
 }
 
@@ -64,16 +85,30 @@ Communicator::UploadResult LFSClient::UploadFile(const std::vector<char>& fileCo
 
 bool LFSClient::IsLFSTracked(const std::string& filePath) const
 {
+	// An empty pathspec matches every path, so the pattern lists have to be checked first
+	if (m_LFSPatterns.empty())
+	{
+		return false;
+	}
+	if (!m_LFSExcludePatterns.empty() && git_pathspec_matches_path(m_LFSExcludePathSpec.get(), GIT_PATHSPEC_IGNORE_CASE, filePath.c_str()) == 1)
+	{
+		return false;
+	}
 	return git_pathspec_matches_path(m_LFSPathSpec.get(), GIT_PATHSPEC_IGNORE_CASE, filePath.c_str()) == 1;
 }
 
-std::vector<char> LFSClient::GetGitAttributesContents() const
+std::vector<std::string> LFSClient::GetGitAttributesLines() const
 {
-	std::vector<char> result;
+	std::vector<std::string> result;
 	for (const auto& pattern : m_LFSPatterns)
 	{
-		const std::string line = pattern + " filter=lfs diff=lfs merge=lfs -text\n";
-		result.insert(result.end(), line.begin(), line.end());
+		result.push_back(pattern + " filter=lfs diff=lfs merge=lfs -text");
+	}
+	// Exclusions come last, so they override the LFS lines above. "text=auto" restores the default
+	// text detection, without corrupting binary files, as "text" would do.
+	for (const auto& pattern : m_LFSExcludePatterns)
+	{
+		result.push_back(pattern + " !filter !diff !merge text=auto");
 	}
 
 	return result;

@@ -221,9 +221,53 @@ std::string GitAPI::DetectLatestCL()
 	return cl;
 }
 
-void GitAPI::CreateIndex(LFSClient* lfsClient)
+std::string GitAPI::ReadFirstCommitGitAttributes() const
+{
+	git_commit* firstCommit = nullptr;
+	GIT2(git_commit_lookup(&firstCommit, m_Repo, &m_FirstCommitOid));
+
+	git_tree* tree = nullptr;
+	GIT2(git_commit_tree(&tree, firstCommit));
+
+	std::string contents;
+	git_tree_entry* entry = nullptr;
+	int errorCode = git_tree_entry_bypath(&entry, tree, ".gitattributes");
+	if (errorCode == 0)
+	{
+		git_blob* blob = nullptr;
+		GIT2(git_blob_lookup(&blob, m_Repo, git_tree_entry_id(entry)));
+		contents.assign((const char*)git_blob_rawcontent(blob), (size_t)git_blob_rawsize(blob));
+		git_blob_free(blob);
+		git_tree_entry_free(entry);
+	}
+	else if (errorCode != GIT_ENOTFOUND)
+	{
+		GIT2(errorCode);
+	}
+
+	git_tree_free(tree);
+	git_commit_free(firstCommit);
+
+	return contents;
+}
+
+void GitAPI::CreateIndex(const std::vector<std::string>& gitAttributes, LFSClient* lfsClient)
 {
 	MTR_SCOPE("Git", __func__);
+
+	// The requested lines come first, followed by the LFS rules if LFS is enabled.
+	// The order of the lines matters, as the last matching line wins in .gitattributes.
+	std::vector<std::string> gitAttributesLines = gitAttributes;
+	if (lfsClient)
+	{
+		const std::vector<std::string> lfsLines = lfsClient->GetGitAttributesLines();
+		gitAttributesLines.insert(gitAttributesLines.end(), lfsLines.begin(), lfsLines.end());
+	}
+	std::string generatedGitAttributesContent;
+	for (const std::string& line : gitAttributesLines)
+	{
+		generatedGitAttributesContent += line + "\n";
+	}
 
 	GIT2(git_repository_index(&m_Index, m_Repo));
 
@@ -253,46 +297,22 @@ void GitAPI::CreateIndex(LFSClient* lfsClient)
 
 		WARN("Loaded index was refreshed to match the tree of the current HEAD commit");
 
-		// If LFS is enabled, check if the existing repo was initially created with LFS support
-		if (lfsClient)
+		// Check that the existing repo was initially created with exactly the same .gitattributes content
+		const std::string existingGitAttributesContent = ReadFirstCommitGitAttributes();
+		if (existingGitAttributesContent != generatedGitAttributesContent)
 		{
-			git_commit* firstCommit = nullptr;
-			GIT2(git_commit_lookup(&firstCommit, m_Repo, &m_FirstCommitOid));
-
-			git_tree* tree = nullptr;
-			GIT2(git_commit_tree(&tree, firstCommit));
-
-			git_tree_entry* entry = nullptr;
-			int errorCode = git_tree_entry_bypath(&entry, tree, ".gitattributes");
-			if (errorCode == GIT_ENOTFOUND)
-			{
-				ERR("GitAPI: LFS support was requested, but existing repo was not created with it!");
-
-				git_tree_free(tree);
-				git_commit_free(firstCommit);
-
-				exit(errorCode);
-			}
-			else if (errorCode != 0)
-			{
-				GIT2(errorCode);
-			}
-
-			git_tree_entry_free(entry);
-			git_tree_free(tree);
-			git_commit_free(firstCommit);
+			ERR("GitAPI: The .gitattributes of the existing repo does not match the one generated from the given --gitAttribute and --lfsSpec options!");
+			exit(GIT_ENOTFOUND);
 		}
 	}
 	else
 	{
-		// Add .gitattributes file and url configuration if LFS is enabled
-		if (lfsClient)
+		if (!generatedGitAttributesContent.empty())
 		{
-			auto gitAttrContents = lfsClient->GetGitAttributesContents();
 			git_index_entry entry = {};
 			entry.mode = GIT_FILEMODE_BLOB;
 			entry.path = ".gitattributes";
-			GIT2(git_index_add_from_buffer(m_Index, &entry, gitAttrContents.data(), gitAttrContents.size()));
+			GIT2(git_index_add_from_buffer(m_Index, &entry, generatedGitAttributesContent.data(), generatedGitAttributesContent.size()));
 		}
 
 		// Create initial commit
