@@ -50,7 +50,7 @@ These execution times are expected to scale as expected with larger depots (mill
         Enable fsync() while writing objects to disk to ensure they get written to permanent storage immediately instead of being cached. This is to mitigate data loss in events of hardware failure.
 
 --gitAttribute [Optional, Default is empty]
-        A line to be written into the .gitattributes file of the initial commit, e.g. "* text=auto eol=lf". Can be specified more than once, each value becomes a new line. When continuing an existing repository, its .gitattributes must contain all the given lines.
+        A line to be written into the .gitattributes file of the initial commit, e.g. "* text=auto eol=lf". Can be specified more than once, each value becomes a new line. When continuing an existing repository, its .gitattributes must match exactly the one generated from the given --gitAttribute and --lfsSpec options.
 
 --includeBinaries [Optional, Default is false]
         Do not discard binary files while downloading changelists.
@@ -204,7 +204,7 @@ For example, to store and check out text files with LF line endings (the equival
 --gitAttribute "* text=auto eol=lf" --gitAttribute "*.vcxproj text eol=crlf" --gitAttribute "*.bat text eol=crlf"
 ```
 
-When continuing the conversion of an existing repository, p4-fusion stops with an error if the `.gitattributes` file of its first commit does not contain every `--gitAttribute` line and, when LFS is enabled, every LFS line generated from `--lfsSpec`. Changing these options requires a fresh conversion.
+When continuing the conversion of an existing repository, p4-fusion stops with an error if the `.gitattributes` file of its first commit is not exactly the one generated from the given `--gitAttribute` and `--lfsSpec` options, in the same order. This also catches removed or added LFS exclusions. Changing these options requires a fresh conversion.
 
 ### Excluding files from LFS
 

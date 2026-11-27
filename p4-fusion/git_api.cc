@@ -12,7 +12,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
-#include <regex>
 #include <stdexcept>
 #include <tuple>
 #include <sys/wait.h>
@@ -26,13 +25,6 @@
 
 namespace
 {
-
-static bool ContainsLine(const std::string& text, const std::string& line)
-{
-	static const std::regex specialCharsPattern(R"([.^$|()\[\]{}*+?\\])");
-	const std::string escapedLine = std::regex_replace(line, specialCharsPattern, R"(\$&)"); // Escape regex special characters before search
-	return std::regex_search(text, std::regex("(^|\n)" + escapedLine + "\r?(\n|$)"));
-}
 
 static void GetStringAsNFC(const std::string& str, char* buffer, size_t bufferLength)
 {
@@ -264,12 +256,17 @@ void GitAPI::CreateIndex(const std::vector<std::string>& gitAttributes, LFSClien
 	MTR_SCOPE("Git", __func__);
 
 	// The requested lines come first, followed by the LFS rules if LFS is enabled.
-	// LFS rules come last, so their "-text" overrides the earlier rules for LFS tracked files.
+	// The order of the lines matters, as the last matching line wins in .gitattributes.
 	std::vector<std::string> gitAttributesLines = gitAttributes;
 	if (lfsClient)
 	{
 		const std::vector<std::string> lfsLines = lfsClient->GetGitAttributesLines();
 		gitAttributesLines.insert(gitAttributesLines.end(), lfsLines.begin(), lfsLines.end());
+	}
+	std::string generatedGitAttributesContent;
+	for (const std::string& line : gitAttributesLines)
+	{
+		generatedGitAttributesContent += line + "\n";
 	}
 
 	GIT2(git_repository_index(&m_Index, m_Repo));
@@ -300,30 +297,22 @@ void GitAPI::CreateIndex(const std::vector<std::string>& gitAttributes, LFSClien
 
 		WARN("Loaded index was refreshed to match the tree of the current HEAD commit");
 
-		// Check that the existing repo was initially created with the same .gitattributes rules
+		// Check that the existing repo was initially created with exactly the same .gitattributes content
 		const std::string existingGitAttributesContent = ReadFirstCommitGitAttributes();
-		for (const std::string& line : gitAttributesLines)
+		if (existingGitAttributesContent != generatedGitAttributesContent)
 		{
-			if (!ContainsLine(existingGitAttributesContent, line))
-			{
-				ERR("GitAPI: Existing repo was not created with the requested .gitattributes line: " << line);
-				exit(GIT_ENOTFOUND);
-			}
+			ERR("GitAPI: The .gitattributes of the existing repo does not match the one generated from the given --gitAttribute and --lfsSpec options!");
+			exit(GIT_ENOTFOUND);
 		}
 	}
 	else
 	{
-		std::string gitAttrContents;
-		for (const std::string& line : gitAttributesLines)
-		{
-			gitAttrContents += line + "\n";
-		}
-		if (!gitAttrContents.empty())
+		if (!generatedGitAttributesContent.empty())
 		{
 			git_index_entry entry = {};
 			entry.mode = GIT_FILEMODE_BLOB;
 			entry.path = ".gitattributes";
-			GIT2(git_index_add_from_buffer(m_Index, &entry, gitAttrContents.data(), gitAttrContents.size()));
+			GIT2(git_index_add_from_buffer(m_Index, &entry, generatedGitAttributesContent.data(), generatedGitAttributesContent.size()));
 		}
 
 		// Create initial commit

@@ -73,7 +73,7 @@ int Main(int argc, char** argv)
 	Arguments::GetSingleton()->OptionalParameter("--excludeLog", "false", "Log the excluded files in the folder given by '--logFolderPath', one '<CL> <reason> <depotFile>#<rev>' line per excluded file. Reason is 'regex' (matches an '--exclude'), 'path' (it's on a CL but not under '--path') or 'branch' (it's under '--path' but not under any '--branch'). Requires '--logFolderPath'.");
 	Arguments::GetSingleton()->OptionalParameter("--streamMappings", "false", "Use Mappings defined by Perforce Stream Spec for a given stream");
 	Arguments::GetSingleton()->OptionalParameterList("--gitAttribute", "A line to be written into the .gitattributes file of the initial commit, e.g. \"* text=auto eol=lf\". Can be specified more than once, each value becomes a new line. "
-	                                                                   "When continuing an existing repository, its .gitattributes must contain all the given lines.");
+	                                                                   "When continuing an existing repository, its .gitattributes must match exactly the one generated from the given --gitAttribute and --lfsSpec options.");
 	Arguments::GetSingleton()->OptionalParameterList("--lfsSpec", "Path spec for files to be handled by Git LFS. Can be specified more than once. "
 	                                                              "A path spec starting with '!' excludes the matching files from Git LFS, even if they match another path spec, e.g. --lfsSpec \"*.dat\" --lfsSpec \"!Sources/BuildNum.dat\".");
 	Arguments::GetSingleton()->OptionalParameter("--lfsServerUrl", "", "URL of the Git LFS server to use for uploading files with basic transfer.");
